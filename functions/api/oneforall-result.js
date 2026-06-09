@@ -25,12 +25,13 @@ export async function onRequestPost(context) {
     const conversionData = id ? await fetchConversion(apiKey, id) : {};
     const merged = mergeStatus(statusData, conversionData);
 
-    if (isFailed(merged)) {
-      return jsonError("1forall 语音任务生成失败。", 502);
+    const status = extractStatus(merged);
+    if (isFailedStatus(status)) {
+      return jsonError(`1forall 语音任务生成失败：${status || "failed"}`, 502);
     }
 
     const fileUrl = extractFileUrl(merged);
-    if (fileUrl && !isPending(merged)) {
+    if (fileUrl) {
       const audio = await tryFetchAudio(fileUrl);
       if (audio) {
         return audioResponse(audio);
@@ -39,7 +40,8 @@ export async function onRequestPost(context) {
 
     return new Response(JSON.stringify({
       pending: true,
-      status: merged.status || statusData.status || conversionData.status || "processing",
+      status: status || "processing",
+      hasFileUrl: Boolean(fileUrl),
       codeRef,
       id
     }), {
@@ -124,14 +126,20 @@ async function tryFetchAudio(fileUrl) {
   return null;
 }
 
-function isPending(data) {
-  const status = String(data?.status || data?.conversion?.status || "").toLowerCase();
-  return ["", "pending", "processing", "queued", "created", "started", "running"].includes(status);
+function isFailedStatus(statusValue) {
+  const status = String(statusValue || "").toLowerCase();
+  return ["failed", "error", "cancelled", "canceled"].includes(status);
 }
 
-function isFailed(data) {
-  const status = String(data?.status || data?.conversion?.status || "").toLowerCase();
-  return ["failed", "error", "cancelled", "canceled"].includes(status);
+function extractStatus(data) {
+  return data?.status
+    || data?.state
+    || data?.conversion?.status
+    || data?.conversion?.state
+    || data?.result?.status
+    || data?.result?.state
+    || data?.output?.status
+    || data?.output?.state;
 }
 
 function extractFileUrl(data) {

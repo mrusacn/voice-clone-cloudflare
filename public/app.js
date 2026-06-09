@@ -353,6 +353,9 @@ async function pollOneForAllAudio(task) {
     });
 
     if (response.status === 202) {
+      const data = await response.json().catch(() => ({}));
+      const fileHint = data.hasFileUrl ? "，已拿到音频链接，正在等待可下载" : "";
+      setMessage(`1forall 正在生成语音，状态：${data.status || "processing"}${fileHint}，已等待 ${Math.round((attempt + 1) * 3)} 秒。`, "");
       continue;
     }
 
