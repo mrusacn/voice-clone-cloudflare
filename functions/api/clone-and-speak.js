@@ -362,15 +362,20 @@ async function oneForAllTextToSpeech(env, form, text) {
     return jsonError(providerMessage(created, "1forall 创建语音任务失败。"), createResponse.status);
   }
 
-  const completed = await pollOneForAllSpeech(apiKey, created);
-  const fileUrl = extractOneForAllFileUrl(completed);
-  if (!fileUrl) {
-    return jsonError("1forall 任务完成后没有返回音频下载地址。", 502);
-  }
-
-  const audio = await fetchOneForAllAudio(fileUrl);
-
-  return audioResponse(audio);
+  return new Response(JSON.stringify({
+    pending: true,
+    provider: "oneforall",
+    codeRef: created.code_ref || "",
+    id: created.id || "",
+    status: created.status || "pending"
+  }), {
+    status: 202,
+    headers: {
+      "content-type": "application/json; charset=utf-8",
+      "cache-control": "no-store",
+      ...corsHeaders()
+    }
+  });
 }
 
 async function pollOneForAllSpeech(apiKey, created) {

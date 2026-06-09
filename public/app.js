@@ -272,16 +272,8 @@ async function generateSpeech() {
       throw new Error(data.error || "生成失败。");
     }
 
-    const blob = await response.blob();
-    if (outputObjectUrl) {
-      URL.revokeObjectURL(outputObjectUrl);
-    }
-
-    outputObjectUrl = URL.createObjectURL(blob);
-    outputAudio.src = outputObjectUrl;
-    playOutput.disabled = false;
-    downloadLink.href = outputObjectUrl;
-    downloadLink.classList.remove("disabled");
+    const blob = await resolveGeneratedAudio(response, selectedProvider);
+    setOutputAudio(blob);
 
     addHistory({
       id: crypto.randomUUID(),
@@ -331,6 +323,64 @@ function updateProviderUi() {
 
 function needsSample(selectedProvider) {
   return selectedProvider === "elevenlabs" || selectedProvider === "custom";
+}
+
+async function resolveGeneratedAudio(response, selectedProvider) {
+  const contentType = response.headers.get("content-type") || "";
+  if (selectedProvider === "oneforall" && contentType.includes("application/json")) {
+    const data = await response.json();
+    if (data.pending) {
+      return pollOneForAllAudio(data);
+    }
+  }
+
+  return response.blob();
+}
+
+async function pollOneForAllAudio(task) {
+  for (let attempt = 0; attempt < 60; attempt += 1) {
+    await wait(3000);
+    setMessage(`1forall 正在生成语音，已等待 ${Math.round((attempt + 1) * 3)} 秒。`, "");
+
+    const form = new FormData();
+    form.append("codeRef", task.codeRef || "");
+    form.append("id", task.id || "");
+    form.append("oneForAllApiKey", oneForAllApiKey.value.trim());
+
+    const response = await fetch("/api/oneforall-result", {
+      method: "POST",
+      body: form
+    });
+
+    if (response.status === 202) {
+      continue;
+    }
+
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      throw new Error(data.error || "1forall 查询结果失败。");
+    }
+
+    return response.blob();
+  }
+
+  throw new Error("1forall 生成时间较长，请稍后再试。");
+}
+
+function setOutputAudio(blob) {
+  if (outputObjectUrl) {
+    URL.revokeObjectURL(outputObjectUrl);
+  }
+
+  outputObjectUrl = URL.createObjectURL(blob);
+  outputAudio.src = outputObjectUrl;
+  playOutput.disabled = false;
+  downloadLink.href = outputObjectUrl;
+  downloadLink.classList.remove("disabled");
+}
+
+function wait(milliseconds) {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
 
 function addHistory(item) {
