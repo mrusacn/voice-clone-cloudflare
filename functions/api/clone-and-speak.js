@@ -363,15 +363,12 @@ async function oneForAllTextToSpeech(env, form, text) {
   }
 
   const completed = await pollOneForAllSpeech(apiKey, created);
-  const fileUrl = completed.url_file || completed.url || completed.file_url;
+  const fileUrl = extractOneForAllFileUrl(completed);
   if (!fileUrl) {
     return jsonError("1forall 任务完成后没有返回音频下载地址。", 502);
   }
 
-  const audio = await fetch(fileUrl);
-  if (!audio.ok) {
-    return jsonError("1forall 音频文件下载失败。", audio.status);
-  }
+  const audio = await fetchOneForAllAudio(fileUrl);
 
   return audioResponse(audio);
 }
@@ -380,7 +377,7 @@ async function pollOneForAllSpeech(apiKey, created) {
   let latest = created;
   const codeRef = created.code_ref;
 
-  if (latest.url_file) {
+  if (isOneForAllCompleted(latest) && extractOneForAllFileUrl(latest)) {
     return latest;
   }
 
@@ -402,7 +399,7 @@ async function pollOneForAllSpeech(apiKey, created) {
       throw new ProviderError(providerMessage(latest, "1forall 查询状态失败。"), response.status);
     }
 
-    if (latest.url_file || latest.status === "completed" || latest.status === "success") {
+    if ((isOneForAllCompleted(latest) || attempt >= 6) && extractOneForAllFileUrl(latest)) {
       return latest;
     }
 
@@ -412,6 +409,40 @@ async function pollOneForAllSpeech(apiKey, created) {
   }
 
   throw new ProviderError("1forall 生成仍在处理中，请稍后重试。", 504);
+}
+
+async function fetchOneForAllAudio(fileUrl) {
+  let lastStatus = 0;
+  for (let attempt = 0; attempt < 6; attempt += 1) {
+    if (attempt > 0) {
+      await sleep(2000);
+    }
+
+    const response = await fetch(fileUrl);
+    lastStatus = response.status;
+    if (response.ok) {
+      return response;
+    }
+  }
+
+  throw new ProviderError(`1forall 音频文件下载失败，状态码 ${lastStatus || "未知"}。`, 502);
+}
+
+function isOneForAllCompleted(data) {
+  const status = String(data?.status || data?.conversion?.status || "").toLowerCase();
+  return ["completed", "complete", "success", "succeeded", "done"].includes(status);
+}
+
+function extractOneForAllFileUrl(data) {
+  return data?.url_file
+    || data?.file_url
+    || data?.url
+    || data?.conversion?.url_file
+    || data?.conversion?.file_url
+    || data?.conversion?.url
+    || data?.result?.url_file
+    || data?.result?.file_url
+    || data?.result?.url;
 }
 
 function audioResponse(response) {
