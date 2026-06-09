@@ -25,9 +25,11 @@ const similarity = document.querySelector("#similarity");
 const style = document.querySelector("#style");
 const azureRegion = document.querySelector("#azureRegion");
 const azureKey = document.querySelector("#azureKey");
+const azureNativeVoice = document.querySelector("#azureNativeVoice");
 const azureVoice = document.querySelector("#azureVoice");
 const googleLanguage = document.querySelector("#googleLanguage");
 const googleVoice = document.querySelector("#googleVoice");
+const googleNativeVoice = document.querySelector("#googleNativeVoice");
 const googleServiceAccount = document.querySelector("#googleServiceAccount");
 const oneForAllApiKey = document.querySelector("#oneForAllApiKey");
 const oneForAllVoice = document.querySelector("#oneForAllVoice");
@@ -112,6 +114,14 @@ clearText.addEventListener("click", () => {
 });
 
 provider.addEventListener("change", updateProviderUi);
+azureNativeVoice.addEventListener("change", () => {
+  azureVoice.value = azureNativeVoice.value;
+});
+googleNativeVoice.addEventListener("change", () => {
+  const [language, voice] = googleNativeVoice.value.split("|");
+  googleLanguage.value = language;
+  googleVoice.value = voice;
+});
 generateButton.addEventListener("click", generateSpeech);
 
 playOutput.addEventListener("click", () => {
@@ -329,6 +339,16 @@ function updateProviderUi() {
 
   if (selectedProvider === "elevenlabs_tts") {
     void loadElevenLabsVoices();
+  }
+
+  if (selectedProvider === "azure" && azureNativeVoice.value) {
+    azureVoice.value = azureNativeVoice.value;
+  }
+
+  if (selectedProvider === "google" && googleNativeVoice.value) {
+    const [language, voice] = googleNativeVoice.value.split("|");
+    googleLanguage.value = language;
+    googleVoice.value = voice;
   }
 }
 

@@ -138,10 +138,10 @@
               <strong>ElevenLabs：</strong>支持上传几秒音频做声音克隆，需要在 Cloudflare 环境变量配置 ELEVENLABS_API_KEY。
             </div>
             <div class="provider-note hidden" data-provider-note="azure">
-              <strong>Microsoft Azure：</strong>普通神经朗读可用免费额度，不使用上传样本克隆声音。可在 Cloudflare 配置 AZURE_SPEECH_KEY / AZURE_SPEECH_REGION，或临时在这里填写。
+              <strong>Microsoft Azure：</strong>推荐用于原生普通话和原生韩语朗读，不使用上传样本克隆声音。可在 Cloudflare 配置 AZURE_SPEECH_KEY / AZURE_SPEECH_REGION。
             </div>
             <div class="provider-note hidden" data-provider-note="google">
-              <strong>Google Cloud：</strong>普通文本转语音可用免费额度，不使用上传样本克隆声音。建议在 Cloudflare 配置 GOOGLE_SERVICE_ACCOUNT_JSON。
+              <strong>Google Cloud：</strong>可选原生中文/韩文 TTS 音色，不使用上传样本克隆声音。建议在 Cloudflare 配置 GOOGLE_SERVICE_ACCOUNT_JSON。
             </div>
             <div class="provider-note hidden" data-provider-note="oneforall">
               <strong>1forall.ai：</strong>使用 speech/text-to-speech 接口生成普通朗读音频，鉴权格式为 Authorization: Api-Key。上传样本不会用于克隆。
@@ -158,6 +158,27 @@
               <label class="field">
                 <span>Azure Key</span>
                 <input id="azureKey" type="password" placeholder="留空则使用 Cloudflare 环境变量">
+              </label>
+              <label class="field wide">
+                <span>原生中文/韩文音色</span>
+                <select id="azureNativeVoice">
+                  <optgroup label="普通话 - 中国大陆">
+                    <option value="zh-CN-XiaoxiaoNeural">晓晓 Xiaoxiao - 女声，自然亲和</option>
+                    <option value="zh-CN-YunxiNeural">云希 Yunxi - 男声，年轻清朗</option>
+                    <option value="zh-CN-XiaoyiNeural">晓伊 Xiaoyi - 女声，甜美活泼</option>
+                    <option value="zh-CN-YunjianNeural">云健 Yunjian - 男声，稳重有力</option>
+                    <option value="zh-CN-XiaochenNeural">晓辰 Xiaochen - 女声，温和清楚</option>
+                    <option value="zh-CN-YunyangNeural">云扬 Yunyang - 男声，播报感</option>
+                  </optgroup>
+                  <optgroup label="韩语 - 韩国">
+                    <option value="ko-KR-SunHiNeural">SunHi - 女声，标准韩语</option>
+                    <option value="ko-KR-InJoonNeural">InJoon - 男声，标准韩语</option>
+                    <option value="ko-KR-HyunsuNeural">Hyunsu - 男声，自然韩语</option>
+                    <option value="ko-KR-JiMinNeural">JiMin - 女声，年轻自然</option>
+                    <option value="ko-KR-SeoHyeonNeural">SeoHyeon - 女声，清晰正式</option>
+                    <option value="ko-KR-BongJinNeural">BongJin - 男声，低沉稳定</option>
+                  </optgroup>
+                </select>
               </label>
               <label class="field">
                 <span>Azure 声音</span>
@@ -201,6 +222,27 @@
               <label class="field">
                 <span>Google 声音</span>
                 <input id="googleVoice" type="text" value="cmn-CN-Standard-A">
+              </label>
+              <label class="field wide">
+                <span>原生中文/韩文音色</span>
+                <select id="googleNativeVoice">
+                  <optgroup label="普通话 - 中国大陆">
+                    <option value="cmn-CN|cmn-CN-Standard-A">Standard A - 普通话女声</option>
+                    <option value="cmn-CN|cmn-CN-Standard-B">Standard B - 普通话男声</option>
+                    <option value="cmn-CN|cmn-CN-Standard-C">Standard C - 普通话男声</option>
+                    <option value="cmn-CN|cmn-CN-Standard-D">Standard D - 普通话女声</option>
+                    <option value="cmn-CN|cmn-CN-Wavenet-A">Wavenet A - 普通话女声</option>
+                    <option value="cmn-CN|cmn-CN-Wavenet-B">Wavenet B - 普通话男声</option>
+                  </optgroup>
+                  <optgroup label="韩语 - 韩国">
+                    <option value="ko-KR|ko-KR-Standard-A">Standard A - 韩语女声</option>
+                    <option value="ko-KR|ko-KR-Standard-B">Standard B - 韩语女声</option>
+                    <option value="ko-KR|ko-KR-Standard-C">Standard C - 韩语男声</option>
+                    <option value="ko-KR|ko-KR-Standard-D">Standard D - 韩语男声</option>
+                    <option value="ko-KR|ko-KR-Wavenet-A">Wavenet A - 韩语女声</option>
+                    <option value="ko-KR|ko-KR-Wavenet-C">Wavenet C - 韩语男声</option>
+                  </optgroup>
+                </select>
               </label>
               <label class="field wide">
                 <span>服务账号 JSON</span>
