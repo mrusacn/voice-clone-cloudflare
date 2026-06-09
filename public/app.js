@@ -44,6 +44,7 @@ let sampleObjectUrl;
 let outputObjectUrl;
 let history = loadHistory();
 let elevenVoicesLoaded = false;
+const presetElevenVoiceIds = new Set(Array.from(elevenVoiceId.querySelectorAll("option")).map((option) => option.value));
 
 drawEmptyWaveform();
 updateCharCount();
@@ -352,11 +353,20 @@ async function loadElevenLabsVoices() {
       return;
     }
 
-    elevenVoiceId.innerHTML = data.voices.map((voice) => {
+    const accountVoices = data.voices.filter((voice) => !presetElevenVoiceIds.has(voice.id));
+    if (!accountVoices.length) {
+      elevenVoicesLoaded = true;
+      return;
+    }
+
+    const group = document.createElement("optgroup");
+    group.label = "我的账号音色";
+    group.innerHTML = accountVoices.map((voice) => {
       const labels = voice.labels || {};
       const suffix = [labels.gender, labels.accent, voice.category].filter(Boolean).join(" · ");
       return `<option value="${escapeHtml(voice.id)}">${escapeHtml(suffix ? `${voice.name} (${suffix})` : voice.name)}</option>`;
     }).join("");
+    elevenVoiceId.appendChild(group);
     elevenVoicesLoaded = true;
   } catch (error) {
     setMessage(error.message || "获取 ElevenLabs 音色失败。", "error");
