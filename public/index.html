@@ -100,6 +100,7 @@
             <div class="setting">
               <label for="provider">API 提供商</label>
               <select id="provider">
+                <option value="elevenlabs_tts">ElevenLabs 免费 TTS</option>
                 <option value="elevenlabs">ElevenLabs 克隆</option>
                 <option value="azure">Microsoft Azure 免费 TTS</option>
                 <option value="google">Google Cloud 免费 TTS</option>
@@ -130,6 +131,9 @@
           </div>
 
           <div class="provider-config" id="providerConfig">
+            <div class="provider-note hidden" data-provider-note="elevenlabs_tts">
+              <strong>ElevenLabs 免费 TTS：</strong>不上传音频、不克隆声音，直接使用 ElevenLabs 账号可用的官方音色做文字转语音。
+            </div>
             <div class="provider-note" data-provider-note="elevenlabs">
               <strong>ElevenLabs：</strong>支持上传几秒音频做声音克隆，需要在 Cloudflare 环境变量配置 ELEVENLABS_API_KEY。
             </div>
@@ -158,6 +162,15 @@
               <label class="field">
                 <span>Azure 声音</span>
                 <input id="azureVoice" type="text" value="zh-CN-XiaoxiaoNeural">
+              </label>
+            </div>
+
+            <div class="provider-grid hidden" data-provider-fields="elevenlabs_tts">
+              <label class="field wide">
+                <span>ElevenLabs 音色</span>
+                <select id="elevenVoiceId">
+                  <option value="21m00Tcm4TlvDq8ikWAM">Rachel</option>
+                </select>
               </label>
             </div>
 

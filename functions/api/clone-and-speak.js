@@ -41,7 +41,7 @@ export async function onRequestPost(context) {
     return jsonError(`文本太长，请控制在 ${MAX_TEXT_LENGTH} 字以内。`, 400);
   }
 
-  if (provider === "elevenlabs" && !env.ELEVENLABS_API_KEY) {
+  if ((provider === "elevenlabs" || provider === "elevenlabs_tts") && !env.ELEVENLABS_API_KEY) {
     return jsonError("服务端还没有配置 ELEVENLABS_API_KEY。", 500);
   }
 
@@ -62,6 +62,10 @@ export async function onRequestPost(context) {
   try {
     if (provider === "azure") {
       return await azureTextToSpeech(env, form, text);
+    }
+
+    if (provider === "elevenlabs_tts") {
+      return await elevenLabsPresetTextToSpeech(env, form, text);
     }
 
     if (provider === "google") {
@@ -320,6 +324,20 @@ async function customTextToSpeech(env, form, text, sample, voiceName) {
   return audioResponse(response);
 }
 
+async function elevenLabsPresetTextToSpeech(env, form, text) {
+  const voiceId = String(form.get("elevenVoiceId") || env.ELEVENLABS_VOICE_ID || "21m00Tcm4TlvDq8ikWAM");
+  const modelId = normalizeModelId(form.get("modelId") || env.ELEVENLABS_MODEL_ID);
+  const audio = await synthesizeSpeech(env.ELEVENLABS_API_KEY, voiceId, {
+    text,
+    modelId,
+    stability: readNumber(form.get("stability"), 0.45, 0, 1),
+    similarityBoost: readNumber(form.get("similarityBoost"), 0.8, 0, 1),
+    style: readNumber(form.get("style"), 0.1, 0, 1)
+  });
+
+  return audioResponse(audio);
+}
+
 async function oneForAllTextToSpeech(env, form, text) {
   const apiKey = form.get("oneForAllApiKey") || env.ONEFORALL_API_KEY;
   const voice = Number(form.get("oneForAllVoice") || env.ONEFORALL_VOICE_ID || 3029);
@@ -453,7 +471,7 @@ function extractOneForAllFileUrl(data) {
 function audioResponse(response) {
   return new Response(response.body, {
     headers: {
-      "content-type": response.headers.get("content-type") || "audio/mpeg",
+      "content-type": response.contentType || response.headers?.get("content-type") || "audio/mpeg",
       "cache-control": "no-store",
       ...corsHeaders()
     }
@@ -506,7 +524,7 @@ function normalizeModelId(value) {
 
 function normalizeProvider(value) {
   const provider = typeof value === "string" ? value.trim().toLowerCase() : "";
-  return ["elevenlabs", "azure", "google", "oneforall", "custom"].includes(provider) ? provider : "elevenlabs";
+  return ["elevenlabs", "elevenlabs_tts", "azure", "google", "oneforall", "custom"].includes(provider) ? provider : "elevenlabs_tts";
 }
 
 function readNumber(value, fallback, min, max) {

@@ -19,6 +19,7 @@ const playOutput = document.querySelector("#playOutput");
 const downloadLink = document.querySelector("#downloadLink");
 const provider = document.querySelector("#provider");
 const modelId = document.querySelector("#modelId");
+const elevenVoiceId = document.querySelector("#elevenVoiceId");
 const stability = document.querySelector("#stability");
 const similarity = document.querySelector("#similarity");
 const style = document.querySelector("#style");
@@ -42,6 +43,7 @@ let selectedSample;
 let sampleObjectUrl;
 let outputObjectUrl;
 let history = loadHistory();
+let elevenVoicesLoaded = false;
 
 drawEmptyWaveform();
 updateCharCount();
@@ -237,6 +239,10 @@ async function generateSpeech() {
   form.append("similarityBoost", similarity.value);
   form.append("style", style.value);
 
+  if (selectedProvider === "elevenlabs_tts") {
+    form.append("elevenVoiceId", elevenVoiceId.value);
+  }
+
   if (selectedProvider === "azure") {
     form.append("azureRegion", azureRegion.value.trim());
     form.append("azureKey", azureKey.value.trim());
@@ -315,14 +321,46 @@ function updateProviderUi() {
       : "当前 API 使用内置声音朗读，上传样本不会用于克隆。";
   }
 
-  modelId.disabled = selectedProvider !== "elevenlabs";
-  stability.disabled = selectedProvider !== "elevenlabs";
-  similarity.disabled = selectedProvider !== "elevenlabs";
-  style.disabled = selectedProvider !== "elevenlabs";
+  modelId.disabled = !(selectedProvider === "elevenlabs" || selectedProvider === "elevenlabs_tts");
+  stability.disabled = !(selectedProvider === "elevenlabs" || selectedProvider === "elevenlabs_tts");
+  similarity.disabled = !(selectedProvider === "elevenlabs" || selectedProvider === "elevenlabs_tts");
+  style.disabled = !(selectedProvider === "elevenlabs" || selectedProvider === "elevenlabs_tts");
+
+  if (selectedProvider === "elevenlabs_tts") {
+    void loadElevenLabsVoices();
+  }
 }
 
 function needsSample(selectedProvider) {
   return selectedProvider === "elevenlabs" || selectedProvider === "custom";
+}
+
+async function loadElevenLabsVoices() {
+  if (elevenVoicesLoaded) {
+    return;
+  }
+
+  try {
+    const response = await fetch("/api/elevenlabs-voices");
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      throw new Error(data.error || "获取 ElevenLabs 音色失败。");
+    }
+
+    const data = await response.json();
+    if (!Array.isArray(data.voices) || !data.voices.length) {
+      return;
+    }
+
+    elevenVoiceId.innerHTML = data.voices.map((voice) => {
+      const labels = voice.labels || {};
+      const suffix = [labels.gender, labels.accent, voice.category].filter(Boolean).join(" · ");
+      return `<option value="${escapeHtml(voice.id)}">${escapeHtml(suffix ? `${voice.name} (${suffix})` : voice.name)}</option>`;
+    }).join("");
+    elevenVoicesLoaded = true;
+  } catch (error) {
+    setMessage(error.message || "获取 ElevenLabs 音色失败。", "error");
+  }
 }
 
 async function resolveGeneratedAudio(response, selectedProvider) {
