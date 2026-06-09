@@ -28,6 +28,9 @@ const azureVoice = document.querySelector("#azureVoice");
 const googleLanguage = document.querySelector("#googleLanguage");
 const googleVoice = document.querySelector("#googleVoice");
 const googleServiceAccount = document.querySelector("#googleServiceAccount");
+const oneForAllApiKey = document.querySelector("#oneForAllApiKey");
+const oneForAllVoice = document.querySelector("#oneForAllVoice");
+const oneForAllSpeed = document.querySelector("#oneForAllSpeed");
 const customApiUrl = document.querySelector("#customApiUrl");
 const customKeyHeader = document.querySelector("#customKeyHeader");
 const customApiKey = document.querySelector("#customApiKey");
@@ -244,6 +247,12 @@ async function generateSpeech() {
     form.append("googleLanguage", googleLanguage.value.trim());
     form.append("googleVoice", googleVoice.value.trim());
     form.append("googleServiceAccount", googleServiceAccount.value.trim());
+  }
+
+  if (selectedProvider === "oneforall") {
+    form.append("oneForAllApiKey", oneForAllApiKey.value.trim());
+    form.append("oneForAllVoice", oneForAllVoice.value.trim());
+    form.append("oneForAllSpeed", oneForAllSpeed.value.trim());
   }
 
   if (selectedProvider === "custom") {

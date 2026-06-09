@@ -19,6 +19,7 @@
 | ElevenLabs | 支持 | 可能有试用/免费额度 | 最接近本项目“上传几秒音频复刻声音”的目标，长期使用通常要付费。 |
 | Microsoft Azure Speech | 普通 TTS 免费额度支持；Personal Voice/Custom Voice 需申请 | 有普通 TTS 免费层 | 适合免费/低成本朗读，但默认不是声音克隆。 |
 | Google Cloud Text-to-Speech | 不支持本项目这种几秒即时克隆 | 有普通 TTS 免费额度 | 适合普通朗读，需要 Google Cloud 服务账号。 |
+| 1forall.ai | 当前接入普通 TTS；克隆声音需另接 cloned voice 接口 | 取决于 1forall 账号额度 | 使用 `speech/text-to-speech`，创建任务后自动轮询状态并下载音频。 |
 | 自定义 API | 取决于你的接口 | 取决于你的接口 | 以 `multipart/form-data` 发送 `text`、`voiceName`、`sample` 字段，并期待直接返回音频。 |
 
 ## 本地运行
@@ -45,6 +46,10 @@ AZURE_SPEECH_VOICE=zh-CN-XiaoxiaoNeural
 GOOGLE_SERVICE_ACCOUNT_JSON={"type":"service_account",...}
 GOOGLE_TTS_LANGUAGE=cmn-CN
 GOOGLE_TTS_VOICE=cmn-CN-Standard-A
+
+# 可选：1forall.ai Text-to-Speech
+ONEFORALL_API_KEY=你的 1forall API Key
+ONEFORALL_VOICE_ID=3029
 
 # 可选：自定义兼容 API
 CUSTOM_TTS_API_URL=https://api.example.com/tts
@@ -74,6 +79,7 @@ npm run dev
    - `DELETE_TEMP_VOICE`，可选，默认 `true`
    - `AZURE_SPEECH_KEY`、`AZURE_SPEECH_REGION`、`AZURE_SPEECH_VOICE`，可选，用于 Microsoft Azure 普通文本转语音
    - `GOOGLE_SERVICE_ACCOUNT_JSON`、`GOOGLE_TTS_LANGUAGE`、`GOOGLE_TTS_VOICE`，可选，用于 Google Cloud Text-to-Speech
+   - `ONEFORALL_API_KEY`、`ONEFORALL_VOICE_ID`，可选，用于 1forall.ai Text-to-Speech
    - `CUSTOM_TTS_API_URL`、`CUSTOM_TTS_API_KEY`、`CUSTOM_TTS_KEY_HEADER`，可选，用于自定义 API
 5. 重新部署。
 
@@ -96,13 +102,14 @@ Content-Type: multipart/form-data
 - `text`: 要朗读的文本
 - `voiceName`: 声音名称
 - `consent`: 必须为 `true`
-- `provider`: `elevenlabs`、`azure`、`google` 或 `custom`
+- `provider`: `elevenlabs`、`azure`、`google`、`oneforall` 或 `custom`
 - `modelId`: 可选，默认读取环境变量
 - `stability`: 可选
 - `similarityBoost`: 可选
 - `style`: 可选
 - `azureRegion`、`azureKey`、`azureVoice`: 可选，Azure 模式
 - `googleLanguage`、`googleVoice`、`googleServiceAccount`: 可选，Google 模式
+- `oneForAllApiKey`、`oneForAllVoice`、`oneForAllSpeed`: 可选，1forall 模式
 - `customApiUrl`、`customApiKey`、`customKeyHeader`: 可选，自定义 API 模式
 
 接口返回 `audio/mpeg`。

@@ -103,6 +103,7 @@
                 <option value="elevenlabs">ElevenLabs 克隆</option>
                 <option value="azure">Microsoft Azure 免费 TTS</option>
                 <option value="google">Google Cloud 免费 TTS</option>
+                <option value="oneforall">1forall.ai TTS</option>
                 <option value="custom">自定义兼容 API</option>
               </select>
             </div>
@@ -137,6 +138,9 @@
             </div>
             <div class="provider-note hidden" data-provider-note="google">
               <strong>Google Cloud：</strong>普通文本转语音可用免费额度，不使用上传样本克隆声音。建议在 Cloudflare 配置 GOOGLE_SERVICE_ACCOUNT_JSON。
+            </div>
+            <div class="provider-note hidden" data-provider-note="oneforall">
+              <strong>1forall.ai：</strong>使用 speech/text-to-speech 接口生成普通朗读音频，鉴权格式为 Authorization: Api-Key。上传样本不会用于克隆。
             </div>
             <div class="provider-note hidden" data-provider-note="custom">
               <strong>自定义 API：</strong>会以 multipart/form-data 发送 text、voiceName、sample 字段，并期待接口直接返回音频文件。
@@ -184,6 +188,21 @@
               <label class="field">
                 <span>API Key</span>
                 <input id="customApiKey" type="password" placeholder="留空则不发送">
+              </label>
+            </div>
+
+            <div class="provider-grid hidden" data-provider-fields="oneforall">
+              <label class="field">
+                <span>1forall API Key</span>
+                <input id="oneForAllApiKey" type="password" placeholder="建议留空，在 Cloudflare 变量 ONEFORALL_API_KEY 中配置">
+              </label>
+              <label class="field">
+                <span>声音 ID</span>
+                <input id="oneForAllVoice" type="number" value="3029" min="1" step="1">
+              </label>
+              <label class="field">
+                <span>语速</span>
+                <input id="oneForAllSpeed" type="number" value="1" min="0.25" max="4" step="0.05">
               </label>
             </div>
           </div>

@@ -68,6 +68,10 @@ export async function onRequestPost(context) {
       return await googleTextToSpeech(env, form, text);
     }
 
+    if (provider === "oneforall") {
+      return await oneForAllTextToSpeech(env, form, text);
+    }
+
     if (provider === "custom") {
       return await customTextToSpeech(env, form, text, sample, voiceName);
     }
@@ -316,6 +320,100 @@ async function customTextToSpeech(env, form, text, sample, voiceName) {
   return audioResponse(response);
 }
 
+async function oneForAllTextToSpeech(env, form, text) {
+  const apiKey = form.get("oneForAllApiKey") || env.ONEFORALL_API_KEY;
+  const voice = Number(form.get("oneForAllVoice") || env.ONEFORALL_VOICE_ID || 3029);
+  const speed = readNumber(form.get("oneForAllSpeed"), 1, 0.25, 4);
+  const title = normalizeName(form.get("voiceName") || "Voice Clone Speech");
+
+  if (!apiKey) {
+    return jsonError("1forall 模式需要配置 ONEFORALL_API_KEY，或在页面中填写 API Key。", 500);
+  }
+
+  const createResponse = await fetch("https://api.1forall.ai/v1/external/speech/text-to-speech/", {
+    method: "POST",
+    headers: {
+      "Authorization": `Api-Key ${apiKey}`,
+      "Content-Type": "application/json",
+      "Accept": "application/json"
+    },
+    body: JSON.stringify({
+      title,
+      speed,
+      voice,
+      additional_fields: {
+        speed,
+        volume: 1,
+        pitch: 0,
+        emotion: "auto",
+        sample_rate: "32000",
+        bitrate: "128000",
+        channel: "stereo",
+        language_boost: "None"
+      },
+      output: "mp3",
+      text,
+      is_clone: false
+    })
+  });
+
+  const created = await createResponse.json().catch(() => ({}));
+  if (!createResponse.ok) {
+    return jsonError(providerMessage(created, "1forall 创建语音任务失败。"), createResponse.status);
+  }
+
+  const completed = await pollOneForAllSpeech(apiKey, created);
+  const fileUrl = completed.url_file || completed.url || completed.file_url;
+  if (!fileUrl) {
+    return jsonError("1forall 任务完成后没有返回音频下载地址。", 502);
+  }
+
+  const audio = await fetch(fileUrl);
+  if (!audio.ok) {
+    return jsonError("1forall 音频文件下载失败。", audio.status);
+  }
+
+  return audioResponse(audio);
+}
+
+async function pollOneForAllSpeech(apiKey, created) {
+  let latest = created;
+  const codeRef = created.code_ref;
+
+  if (latest.url_file) {
+    return latest;
+  }
+
+  if (!codeRef) {
+    throw new ProviderError("1forall 没有返回 code_ref，无法查询生成状态。", 502);
+  }
+
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    await sleep(2500);
+    const response = await fetch(`https://api.1forall.ai/v1/external/speech/check-status/${encodeURIComponent(codeRef)}/`, {
+      headers: {
+        "Authorization": `Api-Key ${apiKey}`,
+        "Accept": "application/json"
+      }
+    });
+    latest = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      throw new ProviderError(providerMessage(latest, "1forall 查询状态失败。"), response.status);
+    }
+
+    if (latest.url_file || latest.status === "completed" || latest.status === "success") {
+      return latest;
+    }
+
+    if (latest.status === "failed" || latest.status === "error") {
+      throw new ProviderError("1forall 语音任务生成失败。", 502);
+    }
+  }
+
+  throw new ProviderError("1forall 生成仍在处理中，请稍后重试。", 504);
+}
+
 function audioResponse(response) {
   return new Response(response.body, {
     headers: {
@@ -372,7 +470,7 @@ function normalizeModelId(value) {
 
 function normalizeProvider(value) {
   const provider = typeof value === "string" ? value.trim().toLowerCase() : "";
-  return ["elevenlabs", "azure", "google", "custom"].includes(provider) ? provider : "elevenlabs";
+  return ["elevenlabs", "azure", "google", "oneforall", "custom"].includes(provider) ? provider : "elevenlabs";
 }
 
 function readNumber(value, fallback, min, max) {
@@ -520,6 +618,10 @@ function base64ToBytes(value) {
     bytes[index] = binary.charCodeAt(index);
   }
   return bytes;
+}
+
+function sleep(milliseconds) {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
 
 class ProviderError extends Error {
