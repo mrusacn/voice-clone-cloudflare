@@ -45,7 +45,7 @@ export async function onRequestPost(context) {
     return jsonError("服务端还没有配置 ELEVENLABS_API_KEY。", 500);
   }
 
-  if ((provider === "elevenlabs" || provider === "custom") && !(sample instanceof File)) {
+  if ((provider === "elevenlabs" || provider === "custom" || provider === "huggingface_f5") && !(sample instanceof File)) {
     return jsonError("这个模式需要上传一段音频样本。", 400);
   }
 
@@ -78,6 +78,10 @@ export async function onRequestPost(context) {
 
     if (provider === "oneforall") {
       return await oneForAllTextToSpeech(env, form, text);
+    }
+
+    if (provider === "huggingface_f5") {
+      return await huggingFaceF5TextToSpeech(env, form, text, sample);
     }
 
     if (provider === "custom") {
@@ -427,6 +431,54 @@ async function fetchExternalEdgeSpeech(options) {
   return audioResponse(response);
 }
 
+async function huggingFaceF5TextToSpeech(env, form, text, sample) {
+  const url = form.get("hfSpaceUrl") || env.HF_SPACE_URL || "https://dragonkim-voice-clone-f5-tts.hf.space";
+  const apiKey = form.get("hfApiKey") || env.HF_SPACE_API_KEY || "";
+  const refText = String(form.get("hfRefText") || env.HF_REF_TEXT || "");
+  const nfeSteps = Math.round(readNumber(form.get("hfNfeSteps"), 8, 8, 64));
+  const maxSegmentChars = Math.round(readNumber(form.get("hfMaxSegmentChars"), 80, 40, 220));
+
+  if (!(sample instanceof File)) {
+    return jsonError("Hugging Face F5-TTS 需要上传一段参考音频。", 400);
+  }
+
+  const target = validateHuggingFaceSpaceUrl(String(url));
+  const body = new FormData();
+  body.append("sample", sample, sample.name || "sample.wav");
+  body.append("text", text);
+  body.append("ref_text", refText);
+  body.append("remove_silence", "false");
+  body.append("speed", "1");
+  body.append("nfe_steps", String(nfeSteps));
+  body.append("max_segment_chars", String(maxSegmentChars));
+
+  const headers = {
+    "accept": "audio/wav, audio/mpeg, audio/*, application/json"
+  };
+  if (apiKey) {
+    headers.authorization = `Bearer ${apiKey}`;
+  }
+
+  const response = await fetch(`${target}/api/clone-and-speak`, {
+    method: "POST",
+    headers,
+    body
+  });
+
+  if (!response.ok) {
+    const contentType = response.headers.get("content-type") || "";
+    if (contentType.includes("application/json")) {
+      const data = await response.json().catch(() => ({}));
+      return jsonError(data.error || "Hugging Face F5-TTS 生成失败。", response.status);
+    }
+
+    const detail = await response.text();
+    return jsonError(detail || "Hugging Face F5-TTS 生成失败。", response.status);
+  }
+
+  return audioResponse(response);
+}
+
 async function synthesizeEdgeSpeech(options) {
   const requestId = randomHex(16);
   const socket = new WebSocket(`wss://speech.platform.bing.com/consumer/speech/synthesize/readaloud/edge/v1?TrustedClientToken=6A5AA1D4EAFF4E9FB37E23D68491D6F4&ConnectionId=${requestId}`);
@@ -745,7 +797,7 @@ function normalizeModelId(value) {
 
 function normalizeProvider(value) {
   const provider = typeof value === "string" ? value.trim().toLowerCase() : "";
-  return ["elevenlabs", "elevenlabs_tts", "edge_tts", "azure", "google", "oneforall", "custom"].includes(provider) ? provider : "edge_tts";
+  return ["elevenlabs", "elevenlabs_tts", "edge_tts", "huggingface_f5", "azure", "google", "oneforall", "custom"].includes(provider) ? provider : "edge_tts";
 }
 
 function normalizeEdgeEndpoint(value) {
@@ -847,6 +899,24 @@ function validateCustomUrl(value) {
   }
 
   return url.toString();
+}
+
+function validateHuggingFaceSpaceUrl(value) {
+  const raw = String(value || "").trim().replace(/\/+$/, "");
+  const url = new URL(raw);
+  const hostname = url.hostname.toLowerCase();
+  const isBlockedHost = hostname === "localhost"
+    || hostname === "127.0.0.1"
+    || hostname === "::1"
+    || /^10\./.test(hostname)
+    || /^192\.168\./.test(hostname)
+    || /^172\.(1[6-9]|2\d|3[0-1])\./.test(hostname);
+
+  if (url.protocol !== "https:" || isBlockedHost) {
+    throw new ProviderError("Hugging Face Space 地址必须是公开的 https 地址。", 400);
+  }
+
+  return url.toString().replace(/\/+$/, "");
 }
 
 function parseServiceAccount(value) {

@@ -8,7 +8,7 @@
 - 粘贴文本或上传 `.txt` 文件
 - 勾选授权声明后才允许生成
 - Cloudflare Pages Function 代理第三方语音 API，避免把固定密钥写进前端代码
-- 支持 Edge TTS 免费音色、ElevenLabs 免费普通 TTS、ElevenLabs 声音克隆、Microsoft Azure Speech、Google Cloud Text-to-Speech、自定义兼容 API
+- 支持 Edge TTS 免费音色、Hugging Face F5-TTS 克隆、ElevenLabs 免费普通 TTS、ElevenLabs 声音克隆、Microsoft Azure Speech、Google Cloud Text-to-Speech、自定义兼容 API
 - 默认生成后删除临时克隆声音，降低隐私风险
 - 本地浏览器保存最近生成记录
 
@@ -17,6 +17,7 @@
 | 提供商 | 是否支持几秒音频克隆 | 是否可能有免费额度 | 说明 |
 | --- | --- | --- | --- |
 | Edge TTS 免费音色 | 不支持 | 内置在本项目 Cloudflare Functions | 推荐中文、韩文、英文原生音色，不依赖外部 `i711.de5.net`。 |
+| Hugging Face F5-TTS 克隆 | 支持 | Space 免费 CPU 可试用但较慢 | 调用你自己的 Hugging Face Space，上传参考音频和参考原文生成克隆语音。 |
 | ElevenLabs 免费 TTS | 不支持 | 免费版通常可用普通文字转语音额度 | 不上传音频，直接选择官方音色朗读文字。 |
 | ElevenLabs 克隆 | 支持 | 免费版通常不含 Instant Voice Cloning | 最接近本项目“上传几秒音频复刻声音”的目标，但需要支持克隆的套餐。 |
 | Microsoft Azure Speech | 普通 TTS 免费额度支持；Personal Voice/Custom Voice 需申请 | 有普通 TTS 免费层 | 适合免费/低成本朗读，但默认不是声音克隆。 |
@@ -46,6 +47,11 @@ EDGE_TTS_ENDPOINT=
 EDGE_TTS_FALLBACK_ENDPOINT=https://i711.de5.net
 EDGE_TTS_API_KEY=如果想给自己的 Edge TTS 接口加访问密码才填写
 EDGE_TTS_VOICE=zh-CN-XiaoxiaoNeural
+
+# 可选：Hugging Face F5-TTS 克隆
+HF_SPACE_URL=https://dragonkim-voice-clone-f5-tts.hf.space
+HF_SPACE_API_KEY=如果你在 Hugging Face Space 设置了 HF_SPACE_API_KEY 才填写
+HF_REF_TEXT=可选，默认参考音频原文
 
 # 可选：Microsoft Azure Speech
 AZURE_SPEECH_KEY=你的 Azure Speech Key
@@ -91,6 +97,7 @@ npm run dev
    - `ELEVENLABS_VOICE_ID`，可选，ElevenLabs 免费 TTS 默认音色
    - `DELETE_TEMP_VOICE`，可选，默认 `true`
    - `EDGE_TTS_ENDPOINT`、`EDGE_TTS_FALLBACK_ENDPOINT`、`EDGE_TTS_API_KEY`、`EDGE_TTS_VOICE`，可选，用于 Edge TTS。`EDGE_TTS_ENDPOINT` 留空表示优先使用本项目内置接口；`EDGE_TTS_FALLBACK_ENDPOINT` 用于内置 WebSocket 失败时兜底
+   - `HF_SPACE_URL`、`HF_SPACE_API_KEY`、`HF_REF_TEXT`，可选，用于 Hugging Face F5-TTS 克隆
    - `AZURE_SPEECH_KEY`、`AZURE_SPEECH_REGION`、`AZURE_SPEECH_VOICE`，可选，用于 Microsoft Azure 普通文本转语音
    - `GOOGLE_SERVICE_ACCOUNT_JSON`、`GOOGLE_TTS_LANGUAGE`、`GOOGLE_TTS_VOICE`，可选，用于 Google Cloud Text-to-Speech
    - `ONEFORALL_API_KEY`、`ONEFORALL_VOICE_ID`，可选，用于 1forall.ai Text-to-Speech
@@ -129,8 +136,9 @@ Content-Type: multipart/form-data
 - `text`: 要朗读的文本
 - `voiceName`: 声音名称
 - `consent`: 必须为 `true`
-- `provider`: `edge_tts`、`elevenlabs_tts`、`elevenlabs`、`azure`、`google`、`oneforall` 或 `custom`
+- `provider`: `edge_tts`、`huggingface_f5`、`elevenlabs_tts`、`elevenlabs`、`azure`、`google`、`oneforall` 或 `custom`
 - `edgeEndpoint`、`edgeApiKey`、`edgeVoice`、`edgeSpeed`、`edgePitch`: 可选，Edge TTS 模式
+- `hfSpaceUrl`、`hfApiKey`、`hfRefText`、`hfNfeSteps`、`hfMaxSegmentChars`: 可选，Hugging Face F5-TTS 模式
 - `elevenVoiceId`: 可选，ElevenLabs 免费 TTS 音色
 - `modelId`: 可选，默认读取环境变量
 - `stability`: 可选

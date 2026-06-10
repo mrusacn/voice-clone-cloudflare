@@ -24,6 +24,11 @@ const edgeApiKey = document.querySelector("#edgeApiKey");
 const edgeVoice = document.querySelector("#edgeVoice");
 const edgeSpeed = document.querySelector("#edgeSpeed");
 const edgePitch = document.querySelector("#edgePitch");
+const hfSpaceUrl = document.querySelector("#hfSpaceUrl");
+const hfRefText = document.querySelector("#hfRefText");
+const hfApiKey = document.querySelector("#hfApiKey");
+const hfNfeSteps = document.querySelector("#hfNfeSteps");
+const hfMaxSegmentChars = document.querySelector("#hfMaxSegmentChars");
 const elevenVoiceId = document.querySelector("#elevenVoiceId");
 const stability = document.querySelector("#stability");
 const similarity = document.querySelector("#similarity");
@@ -267,6 +272,14 @@ async function generateSpeech() {
     form.append("edgePitch", edgePitch.value);
   }
 
+  if (selectedProvider === "huggingface_f5") {
+    form.append("hfSpaceUrl", hfSpaceUrl.value.trim());
+    form.append("hfRefText", hfRefText.value.trim());
+    form.append("hfApiKey", hfApiKey.value.trim());
+    form.append("hfNfeSteps", hfNfeSteps.value.trim());
+    form.append("hfMaxSegmentChars", hfMaxSegmentChars.value.trim());
+  }
+
   if (selectedProvider === "azure") {
     form.append("azureRegion", azureRegion.value.trim());
     form.append("azureKey", azureKey.value.trim());
@@ -366,7 +379,7 @@ function updateProviderUi() {
 }
 
 function needsSample(selectedProvider) {
-  return selectedProvider === "elevenlabs" || selectedProvider === "custom";
+  return selectedProvider === "elevenlabs" || selectedProvider === "custom" || selectedProvider === "huggingface_f5";
 }
 
 async function loadElevenLabsVoices() {
