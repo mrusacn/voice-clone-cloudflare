@@ -100,6 +100,7 @@
             <div class="setting">
               <label for="provider">API 提供商</label>
               <select id="provider">
+                <option value="edge_tts">Edge TTS 免费音色</option>
                 <option value="elevenlabs_tts">ElevenLabs 免费 TTS</option>
                 <option value="elevenlabs">ElevenLabs 克隆</option>
                 <option value="azure">Microsoft Azure 免费 TTS</option>
@@ -131,6 +132,9 @@
           </div>
 
           <div class="provider-config" id="providerConfig">
+            <div class="provider-note hidden" data-provider-note="edge_tts">
+              <strong>Edge TTS 免费音色：</strong>使用你部署的 Edge TTS Worker，支持大量微软原生中文、韩文、英文音色，不需要 Azure Speech Key。
+            </div>
             <div class="provider-note hidden" data-provider-note="elevenlabs_tts">
               <strong>ElevenLabs 免费 TTS：</strong>不上传音频、不克隆声音，直接使用 ElevenLabs 账号可用的官方音色做文字转语音。
             </div>
@@ -183,6 +187,62 @@
               <label class="field">
                 <span>Azure 声音</span>
                 <input id="azureVoice" type="text" value="zh-CN-XiaoxiaoNeural">
+              </label>
+            </div>
+
+            <div class="provider-grid hidden" data-provider-fields="edge_tts">
+              <label class="field wide">
+                <span>Edge TTS 接口地址</span>
+                <input id="edgeEndpoint" type="url" value="https://i711.de5.net" placeholder="https://i711.de5.net">
+              </label>
+              <label class="field">
+                <span>API Key</span>
+                <input id="edgeApiKey" type="password" placeholder="如你的 Worker 设置了 API_KEY 才填写">
+              </label>
+              <label class="field">
+                <span>语速</span>
+                <input id="edgeSpeed" type="number" value="1" min="0.25" max="2" step="0.05">
+              </label>
+              <label class="field">
+                <span>音调</span>
+                <input id="edgePitch" type="number" value="1" min="0.5" max="2" step="0.05">
+              </label>
+              <label class="field wide">
+                <span>Edge TTS 音色</span>
+                <select id="edgeVoice">
+                  <optgroup label="普通话 - 中国大陆">
+                    <option value="zh-CN-XiaoxiaoNeural">晓晓 Xiaoxiao - 女声，自然亲和</option>
+                    <option value="zh-CN-YunxiNeural">云希 Yunxi - 男声，年轻清朗</option>
+                    <option value="zh-CN-XiaoyiNeural">晓伊 Xiaoyi - 女声，甜美活泼</option>
+                    <option value="zh-CN-YunjianNeural">云健 Yunjian - 男声，稳重有力</option>
+                    <option value="zh-CN-XiaochenNeural">晓辰 Xiaochen - 女声，温和清楚</option>
+                    <option value="zh-CN-YunyangNeural">云扬 Yunyang - 男声，新闻播报</option>
+                    <option value="zh-CN-XiaohanNeural">晓涵 Xiaohan - 女声，温柔成熟</option>
+                    <option value="zh-CN-XiaomengNeural">晓梦 Xiaomeng - 女声，轻快自然</option>
+                  </optgroup>
+                  <optgroup label="中文 - 台湾 / 香港">
+                    <option value="zh-TW-HsiaoChenNeural">HsiaoChen - 台湾女声</option>
+                    <option value="zh-TW-YunJheNeural">YunJhe - 台湾男声</option>
+                    <option value="zh-HK-HiuMaanNeural">HiuMaan - 香港女声</option>
+                    <option value="zh-HK-WanLungNeural">WanLung - 香港男声</option>
+                  </optgroup>
+                  <optgroup label="韩语 - 韩国">
+                    <option value="ko-KR-SunHiNeural">SunHi - 女声，标准韩语</option>
+                    <option value="ko-KR-InJoonNeural">InJoon - 男声，标准韩语</option>
+                    <option value="ko-KR-HyunsuNeural">Hyunsu - 男声，自然韩语</option>
+                    <option value="ko-KR-JiMinNeural">JiMin - 女声，年轻自然</option>
+                    <option value="ko-KR-SeoHyeonNeural">SeoHyeon - 女声，清晰正式</option>
+                    <option value="ko-KR-BongJinNeural">BongJin - 男声，低沉稳定</option>
+                  </optgroup>
+                  <optgroup label="英文 - 美国 / 英国">
+                    <option value="en-US-JennyNeural">Jenny - 美国女声，自然通用</option>
+                    <option value="en-US-GuyNeural">Guy - 美国男声，沉稳</option>
+                    <option value="en-US-AriaNeural">Aria - 美国女声，清晰</option>
+                    <option value="en-US-DavisNeural">Davis - 美国男声，年轻</option>
+                    <option value="en-GB-SoniaNeural">Sonia - 英国女声</option>
+                    <option value="en-GB-RyanNeural">Ryan - 英国男声</option>
+                  </optgroup>
+                </select>
               </label>
             </div>
 

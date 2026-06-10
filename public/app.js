@@ -19,6 +19,11 @@ const playOutput = document.querySelector("#playOutput");
 const downloadLink = document.querySelector("#downloadLink");
 const provider = document.querySelector("#provider");
 const modelId = document.querySelector("#modelId");
+const edgeEndpoint = document.querySelector("#edgeEndpoint");
+const edgeApiKey = document.querySelector("#edgeApiKey");
+const edgeVoice = document.querySelector("#edgeVoice");
+const edgeSpeed = document.querySelector("#edgeSpeed");
+const edgePitch = document.querySelector("#edgePitch");
 const elevenVoiceId = document.querySelector("#elevenVoiceId");
 const stability = document.querySelector("#stability");
 const similarity = document.querySelector("#similarity");
@@ -254,6 +259,14 @@ async function generateSpeech() {
     form.append("elevenVoiceId", elevenVoiceId.value);
   }
 
+  if (selectedProvider === "edge_tts") {
+    form.append("edgeEndpoint", edgeEndpoint.value.trim());
+    form.append("edgeApiKey", edgeApiKey.value.trim());
+    form.append("edgeVoice", edgeVoice.value);
+    form.append("edgeSpeed", edgeSpeed.value);
+    form.append("edgePitch", edgePitch.value);
+  }
+
   if (selectedProvider === "azure") {
     form.append("azureRegion", azureRegion.value.trim());
     form.append("azureKey", azureKey.value.trim());
@@ -332,7 +345,7 @@ function updateProviderUi() {
       : "当前 API 使用内置声音朗读，上传样本不会用于克隆。";
   }
 
-  modelId.disabled = !(selectedProvider === "elevenlabs" || selectedProvider === "elevenlabs_tts");
+  modelId.disabled = !(selectedProvider === "elevenlabs" || selectedProvider === "elevenlabs_tts" || selectedProvider === "edge_tts");
   stability.disabled = !(selectedProvider === "elevenlabs" || selectedProvider === "elevenlabs_tts");
   similarity.disabled = !(selectedProvider === "elevenlabs" || selectedProvider === "elevenlabs_tts");
   style.disabled = !(selectedProvider === "elevenlabs" || selectedProvider === "elevenlabs_tts");

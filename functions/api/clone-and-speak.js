@@ -68,6 +68,10 @@ export async function onRequestPost(context) {
       return await elevenLabsPresetTextToSpeech(env, form, text);
     }
 
+    if (provider === "edge_tts") {
+      return await edgeTextToSpeech(env, form, text);
+    }
+
     if (provider === "google") {
       return await googleTextToSpeech(env, form, text);
     }
@@ -338,6 +342,42 @@ async function elevenLabsPresetTextToSpeech(env, form, text) {
   return audioResponse(audio);
 }
 
+async function edgeTextToSpeech(env, form, text) {
+  const endpoint = normalizeEdgeEndpoint(form.get("edgeEndpoint") || env.EDGE_TTS_ENDPOINT || "https://i711.de5.net");
+  const apiKey = String(form.get("edgeApiKey") || env.EDGE_TTS_API_KEY || "");
+  const voice = String(form.get("edgeVoice") || env.EDGE_TTS_VOICE || "zh-CN-XiaoxiaoNeural");
+  const speed = readNumber(form.get("edgeSpeed"), 1, 0.25, 2);
+  const pitch = readNumber(form.get("edgePitch"), 1, 0.5, 2);
+
+  const headers = {
+    "content-type": "application/json",
+    "accept": "audio/mpeg"
+  };
+  if (apiKey) {
+    headers.authorization = `Bearer ${apiKey}`;
+  }
+
+  const response = await fetch(`${endpoint}/v1/audio/speech`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({
+      model: "tts-1",
+      input: text,
+      voice,
+      speed,
+      pitch,
+      stream: false
+    })
+  });
+
+  if (!response.ok) {
+    const detail = await response.text();
+    return jsonError(detail || "Edge TTS 生成失败。", response.status);
+  }
+
+  return audioResponse(response);
+}
+
 async function oneForAllTextToSpeech(env, form, text) {
   const apiKey = form.get("oneForAllApiKey") || env.ONEFORALL_API_KEY;
   const voice = Number(form.get("oneForAllVoice") || env.ONEFORALL_VOICE_ID || 3029);
@@ -524,7 +564,22 @@ function normalizeModelId(value) {
 
 function normalizeProvider(value) {
   const provider = typeof value === "string" ? value.trim().toLowerCase() : "";
-  return ["elevenlabs", "elevenlabs_tts", "azure", "google", "oneforall", "custom"].includes(provider) ? provider : "elevenlabs_tts";
+  return ["elevenlabs", "elevenlabs_tts", "edge_tts", "azure", "google", "oneforall", "custom"].includes(provider) ? provider : "edge_tts";
+}
+
+function normalizeEdgeEndpoint(value) {
+  const raw = String(value || "").trim().replace(/\/+$/, "");
+  const url = new URL(raw || "https://i711.de5.net");
+  if (url.protocol !== "https:") {
+    throw new ProviderError("Edge TTS 地址必须是 https。", 400);
+  }
+
+  if (url.pathname.endsWith("/v1/audio/speech")) {
+    url.pathname = url.pathname.slice(0, -"/v1/audio/speech".length) || "/";
+    return url.toString().replace(/\/+$/, "");
+  }
+
+  return url.toString().replace(/\/+$/, "");
 }
 
 function readNumber(value, fallback, min, max) {
