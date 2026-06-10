@@ -343,11 +343,33 @@ async function elevenLabsPresetTextToSpeech(env, form, text) {
 }
 
 async function edgeTextToSpeech(env, form, text) {
-  const endpoint = normalizeEdgeEndpoint(form.get("edgeEndpoint") || env.EDGE_TTS_ENDPOINT || "https://i711.de5.net");
+  const endpoint = String(form.get("edgeEndpoint") || env.EDGE_TTS_ENDPOINT || "").trim();
   const apiKey = String(form.get("edgeApiKey") || env.EDGE_TTS_API_KEY || "");
   const voice = String(form.get("edgeVoice") || env.EDGE_TTS_VOICE || "zh-CN-XiaoxiaoNeural");
   const speed = readNumber(form.get("edgeSpeed"), 1, 0.25, 2);
   const pitch = readNumber(form.get("edgePitch"), 1, 0.5, 2);
+
+  if (!endpoint) {
+    if (env.EDGE_TTS_API_KEY && apiKey !== env.EDGE_TTS_API_KEY) {
+      return jsonError("Edge TTS API Key 不正确。", 401);
+    }
+
+    const audioBytes = await synthesizeEdgeSpeech({
+      text,
+      voice,
+      speed,
+      pitch,
+      outputFormat: "audio-24khz-48kbitrate-mono-mp3"
+    });
+
+    return new Response(audioBytes, {
+      headers: {
+        "content-type": "audio/mpeg",
+        "cache-control": "no-store",
+        ...corsHeaders()
+      }
+    });
+  }
 
   const headers = {
     "content-type": "application/json",
@@ -357,7 +379,7 @@ async function edgeTextToSpeech(env, form, text) {
     headers.authorization = `Bearer ${apiKey}`;
   }
 
-  const response = await fetch(`${endpoint}/v1/audio/speech`, {
+  const response = await fetch(`${normalizeEdgeEndpoint(endpoint)}/v1/audio/speech`, {
     method: "POST",
     headers,
     body: JSON.stringify({
@@ -376,6 +398,138 @@ async function edgeTextToSpeech(env, form, text) {
   }
 
   return audioResponse(response);
+}
+
+async function synthesizeEdgeSpeech(options) {
+  const requestId = randomHex(16);
+  const socket = new WebSocket(`wss://speech.platform.bing.com/consumer/speech/synthesize/readaloud/edge/v1?TrustedClientToken=6A5AA1D4EAFF4E9FB37E23D68491D6F4&ConnectionId=${requestId}`);
+  await waitForOpen(socket, 8000);
+  socket.send(makeEdgeSpeechConfig(options.outputFormat));
+  socket.send(makeEdgeSsmlRequest(requestId, options));
+
+  const chunks = [];
+  await new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      tryClose(socket);
+      reject(new ProviderError("Edge TTS 等待超时。", 504));
+    }, 45000);
+
+    socket.addEventListener("message", (event) => {
+      if (typeof event.data === "string") {
+        if (event.data.includes("Path:turn.end")) {
+          clearTimeout(timeout);
+          tryClose(socket);
+          resolve();
+        }
+        return;
+      }
+
+      const chunk = extractEdgeAudioChunk(event.data);
+      if (chunk?.length) {
+        chunks.push(chunk);
+      }
+    });
+
+    socket.addEventListener("error", () => {
+      clearTimeout(timeout);
+      reject(new ProviderError("Edge TTS WebSocket 连接失败。", 502));
+    });
+
+    socket.addEventListener("close", () => {
+      if (chunks.length) {
+        clearTimeout(timeout);
+        resolve();
+      }
+    });
+  });
+
+  if (!chunks.length) {
+    throw new ProviderError("Edge TTS 没有返回音频。", 502);
+  }
+
+  return concatBytes(chunks);
+}
+
+function waitForOpen(socket, timeoutMs) {
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      tryClose(socket);
+      reject(new ProviderError("Edge TTS 连接超时。", 504));
+    }, timeoutMs);
+
+    socket.addEventListener("open", () => {
+      clearTimeout(timeout);
+      resolve();
+    });
+
+    socket.addEventListener("error", () => {
+      clearTimeout(timeout);
+      reject(new ProviderError("Edge TTS WebSocket 连接失败。", 502));
+    });
+  });
+}
+
+function makeEdgeSpeechConfig(outputFormat) {
+  return [
+    `X-Timestamp:${new Date().toISOString()}`,
+    "Content-Type:application/json; charset=utf-8",
+    "Path:speech.config",
+    "",
+    JSON.stringify({
+      context: {
+        synthesis: {
+          audio: {
+            metadataoptions: {
+              sentenceBoundaryEnabled: false,
+              wordBoundaryEnabled: false
+            },
+            outputFormat
+          }
+        }
+      }
+    })
+  ].join("\r\n");
+}
+
+function makeEdgeSsmlRequest(requestId, options) {
+  const locale = voiceLocale(options.voice);
+  const ssml = `<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="${locale}"><voice name="${escapeXml(options.voice)}"><prosody rate="${percent(options.speed - 1)}" pitch="${percent((options.pitch - 1) / 2)}">${escapeXml(options.text)}</prosody></voice></speak>`;
+
+  return [
+    `X-RequestId:${requestId}`,
+    `X-Timestamp:${new Date().toISOString()}`,
+    "Content-Type:application/ssml+xml",
+    "Path:ssml",
+    "",
+    ssml
+  ].join("\r\n");
+}
+
+function extractEdgeAudioChunk(data) {
+  const bytes = data instanceof ArrayBuffer ? new Uint8Array(data) : new Uint8Array(data);
+  if (bytes.length < 2) {
+    return null;
+  }
+
+  const headerLength = (bytes[0] << 8) + bytes[1];
+  const payloadOffset = 2 + headerLength;
+  if (payloadOffset >= bytes.length) {
+    return null;
+  }
+
+  const header = new TextDecoder().decode(bytes.slice(2, payloadOffset));
+  return header.includes("Path:audio") ? bytes.slice(payloadOffset) : null;
+}
+
+function concatBytes(chunks) {
+  const total = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
+  const result = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    result.set(chunk, offset);
+    offset += chunk.length;
+  }
+  return result;
 }
 
 async function oneForAllTextToSpeech(env, form, text) {
@@ -569,7 +723,7 @@ function normalizeProvider(value) {
 
 function normalizeEdgeEndpoint(value) {
   const raw = String(value || "").trim().replace(/\/+$/, "");
-  const url = new URL(raw || "https://i711.de5.net");
+  const url = new URL(raw);
   if (url.protocol !== "https:") {
     throw new ProviderError("Edge TTS 地址必须是 https。", 400);
   }
@@ -580,6 +734,30 @@ function normalizeEdgeEndpoint(value) {
   }
 
   return url.toString().replace(/\/+$/, "");
+}
+
+function voiceLocale(voice) {
+  const match = String(voice).match(/^([a-z]{2}-[A-Z]{2})-/);
+  return match ? match[1] : "zh-CN";
+}
+
+function percent(value) {
+  const rounded = Math.round(value * 100);
+  return `${rounded >= 0 ? "+" : ""}${rounded}%`;
+}
+
+function randomHex(bytes) {
+  const values = new Uint8Array(bytes);
+  crypto.getRandomValues(values);
+  return Array.from(values).map((value) => value.toString(16).padStart(2, "0")).join("");
+}
+
+function tryClose(socket) {
+  try {
+    socket.close();
+  } catch {
+    // Ignore close failures.
+  }
 }
 
 function readNumber(value, fallback, min, max) {

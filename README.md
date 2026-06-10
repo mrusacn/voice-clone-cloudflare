@@ -16,7 +16,7 @@
 
 | 提供商 | 是否支持几秒音频克隆 | 是否可能有免费额度 | 说明 |
 | --- | --- | --- | --- |
-| Edge TTS 免费音色 | 不支持 | 可使用自部署 Worker | 推荐中文、韩文、英文原生音色，默认连接 `https://i711.de5.net`。 |
+| Edge TTS 免费音色 | 不支持 | 内置在本项目 Cloudflare Functions | 推荐中文、韩文、英文原生音色，不依赖外部 `i711.de5.net`。 |
 | ElevenLabs 免费 TTS | 不支持 | 免费版通常可用普通文字转语音额度 | 不上传音频，直接选择官方音色朗读文字。 |
 | ElevenLabs 克隆 | 支持 | 免费版通常不含 Instant Voice Cloning | 最接近本项目“上传几秒音频复刻声音”的目标，但需要支持克隆的套餐。 |
 | Microsoft Azure Speech | 普通 TTS 免费额度支持；Personal Voice/Custom Voice 需申请 | 有普通 TTS 免费层 | 适合免费/低成本朗读，但默认不是声音克隆。 |
@@ -40,9 +40,10 @@ ELEVENLABS_MODEL_ID=eleven_multilingual_v2
 ELEVENLABS_VOICE_ID=21m00Tcm4TlvDq8ikWAM
 DELETE_TEMP_VOICE=true
 
-# 可选：Edge TTS Worker
-EDGE_TTS_ENDPOINT=https://i711.de5.net
-EDGE_TTS_API_KEY=如果你的 Worker 设置了 API_KEY 才填写
+# 可选：Edge TTS
+# EDGE_TTS_ENDPOINT 留空时使用本项目内置接口；只有要调用外部 Worker 时才填写。
+EDGE_TTS_ENDPOINT=
+EDGE_TTS_API_KEY=如果想给自己的 Edge TTS 接口加访问密码才填写
 EDGE_TTS_VOICE=zh-CN-XiaoxiaoNeural
 
 # 可选：Microsoft Azure Speech
@@ -86,7 +87,7 @@ npm run dev
    - `ELEVENLABS_MODEL_ID`，可选，默认 `eleven_multilingual_v2`
    - `ELEVENLABS_VOICE_ID`，可选，ElevenLabs 免费 TTS 默认音色
    - `DELETE_TEMP_VOICE`，可选，默认 `true`
-   - `EDGE_TTS_ENDPOINT`、`EDGE_TTS_API_KEY`、`EDGE_TTS_VOICE`，可选，用于 Edge TTS Worker
+   - `EDGE_TTS_ENDPOINT`、`EDGE_TTS_API_KEY`、`EDGE_TTS_VOICE`，可选，用于 Edge TTS。`EDGE_TTS_ENDPOINT` 留空表示使用本项目内置接口
    - `AZURE_SPEECH_KEY`、`AZURE_SPEECH_REGION`、`AZURE_SPEECH_VOICE`，可选，用于 Microsoft Azure 普通文本转语音
    - `GOOGLE_SERVICE_ACCOUNT_JSON`、`GOOGLE_TTS_LANGUAGE`、`GOOGLE_TTS_VOICE`，可选，用于 Google Cloud Text-to-Speech
    - `ONEFORALL_API_KEY`、`ONEFORALL_VOICE_ID`，可选，用于 1forall.ai Text-to-Speech

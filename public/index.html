@@ -133,7 +133,7 @@
 
           <div class="provider-config" id="providerConfig">
             <div class="provider-note hidden" data-provider-note="edge_tts">
-              <strong>Edge TTS 免费音色：</strong>使用你部署的 Edge TTS Worker，支持大量微软原生中文、韩文、英文音色，不需要 Azure Speech Key。
+              <strong>Edge TTS 免费音色：</strong>已内置在本项目里，支持大量微软原生中文、韩文、英文音色，不需要 Azure Speech Key，也不依赖外部网站。
             </div>
             <div class="provider-note hidden" data-provider-note="elevenlabs_tts">
               <strong>ElevenLabs 免费 TTS：</strong>不上传音频、不克隆声音，直接使用 ElevenLabs 账号可用的官方音色做文字转语音。
@@ -193,7 +193,7 @@
             <div class="provider-grid hidden" data-provider-fields="edge_tts">
               <label class="field wide">
                 <span>Edge TTS 接口地址</span>
-                <input id="edgeEndpoint" type="url" value="https://i711.de5.net" placeholder="https://i711.de5.net">
+                <input id="edgeEndpoint" type="url" value="" placeholder="留空使用本项目内置接口；外部 Worker 才填写">
               </label>
               <label class="field">
                 <span>API Key</span>
