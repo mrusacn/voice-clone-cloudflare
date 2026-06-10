@@ -43,6 +43,7 @@ DELETE_TEMP_VOICE=true
 # 可选：Edge TTS
 # EDGE_TTS_ENDPOINT 留空时使用本项目内置接口；只有要调用外部 Worker 时才填写。
 EDGE_TTS_ENDPOINT=
+EDGE_TTS_FALLBACK_ENDPOINT=https://i711.de5.net
 EDGE_TTS_API_KEY=如果想给自己的 Edge TTS 接口加访问密码才填写
 EDGE_TTS_VOICE=zh-CN-XiaoxiaoNeural
 
@@ -83,16 +84,31 @@ npm run dev
    - Build command: 留空或 `npm install`
    - Build output directory: `public`
 4. 在 Pages 项目里添加环境变量：
+   - `SITE_PASSWORD`，可选，填写后打开网页需要先输入访问密码
+   - `SITE_PASSWORD_COOKIE_DAYS`，可选，密码登录保持天数，默认 `7`，最大 `30`
    - `ELEVENLABS_API_KEY`
    - `ELEVENLABS_MODEL_ID`，可选，默认 `eleven_multilingual_v2`
    - `ELEVENLABS_VOICE_ID`，可选，ElevenLabs 免费 TTS 默认音色
    - `DELETE_TEMP_VOICE`，可选，默认 `true`
-   - `EDGE_TTS_ENDPOINT`、`EDGE_TTS_API_KEY`、`EDGE_TTS_VOICE`，可选，用于 Edge TTS。`EDGE_TTS_ENDPOINT` 留空表示使用本项目内置接口
+   - `EDGE_TTS_ENDPOINT`、`EDGE_TTS_FALLBACK_ENDPOINT`、`EDGE_TTS_API_KEY`、`EDGE_TTS_VOICE`，可选，用于 Edge TTS。`EDGE_TTS_ENDPOINT` 留空表示优先使用本项目内置接口；`EDGE_TTS_FALLBACK_ENDPOINT` 用于内置 WebSocket 失败时兜底
    - `AZURE_SPEECH_KEY`、`AZURE_SPEECH_REGION`、`AZURE_SPEECH_VOICE`，可选，用于 Microsoft Azure 普通文本转语音
    - `GOOGLE_SERVICE_ACCOUNT_JSON`、`GOOGLE_TTS_LANGUAGE`、`GOOGLE_TTS_VOICE`，可选，用于 Google Cloud Text-to-Speech
    - `ONEFORALL_API_KEY`、`ONEFORALL_VOICE_ID`，可选，用于 1forall.ai Text-to-Speech
    - `CUSTOM_TTS_API_URL`、`CUSTOM_TTS_API_KEY`、`CUSTOM_TTS_KEY_HEADER`，可选，用于自定义 API
 5. 重新部署。
+
+### 给网页设置访问密码
+
+如果你想让别人打开网页前先输入密码：
+
+1. 进入 Cloudflare Pages 项目。
+2. 打开 `设置` -> `变量和密钥`。
+3. 添加变量：
+   - 变量名：`SITE_PASSWORD`
+   - 值：你想设置的网页密码
+4. 保存后重新部署一次。
+
+设置成功后，访问网页会先显示密码页。删除 `SITE_PASSWORD` 变量并重新部署，就会取消密码保护。已登录的浏览器默认 7 天内不用重复输入密码，可以用 `SITE_PASSWORD_COOKIE_DAYS` 调整。
 
 ## 合规提醒
 

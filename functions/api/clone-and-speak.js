@@ -344,6 +344,7 @@ async function elevenLabsPresetTextToSpeech(env, form, text) {
 
 async function edgeTextToSpeech(env, form, text) {
   const endpoint = String(form.get("edgeEndpoint") || env.EDGE_TTS_ENDPOINT || "").trim();
+  const fallbackEndpoint = String(env.EDGE_TTS_FALLBACK_ENDPOINT || "https://i711.de5.net").trim();
   const apiKey = String(form.get("edgeApiKey") || env.EDGE_TTS_API_KEY || "");
   const voice = String(form.get("edgeVoice") || env.EDGE_TTS_VOICE || "zh-CN-XiaoxiaoNeural");
   const speed = readNumber(form.get("edgeSpeed"), 1, 0.25, 2);
@@ -354,40 +355,66 @@ async function edgeTextToSpeech(env, form, text) {
       return jsonError("Edge TTS API Key 不正确。", 401);
     }
 
-    const audioBytes = await synthesizeEdgeSpeech({
-      text,
-      voice,
-      speed,
-      pitch,
-      outputFormat: "audio-24khz-48kbitrate-mono-mp3"
-    });
+    try {
+      const audioBytes = await synthesizeEdgeSpeech({
+        text,
+        voice,
+        speed,
+        pitch,
+        outputFormat: "audio-24khz-48kbitrate-mono-mp3"
+      });
 
-    return new Response(audioBytes, {
-      headers: {
-        "content-type": "audio/mpeg",
-        "cache-control": "no-store",
-        ...corsHeaders()
+      return new Response(audioBytes, {
+        headers: {
+          "content-type": "audio/mpeg",
+          "cache-control": "no-store",
+          ...corsHeaders()
+        }
+      });
+    } catch (error) {
+      if (!fallbackEndpoint) {
+        throw error;
       }
-    });
+
+      return fetchExternalEdgeSpeech({
+        endpoint: fallbackEndpoint,
+        apiKey,
+        text,
+        voice,
+        speed,
+        pitch
+      });
+    }
   }
 
+  return fetchExternalEdgeSpeech({
+    endpoint,
+    apiKey,
+    text,
+    voice,
+    speed,
+    pitch
+  });
+}
+
+async function fetchExternalEdgeSpeech(options) {
   const headers = {
     "content-type": "application/json",
     "accept": "audio/mpeg"
   };
-  if (apiKey) {
-    headers.authorization = `Bearer ${apiKey}`;
+  if (options.apiKey) {
+    headers.authorization = `Bearer ${options.apiKey}`;
   }
 
-  const response = await fetch(`${normalizeEdgeEndpoint(endpoint)}/v1/audio/speech`, {
+  const response = await fetch(`${normalizeEdgeEndpoint(options.endpoint)}/v1/audio/speech`, {
     method: "POST",
     headers,
     body: JSON.stringify({
       model: "tts-1",
-      input: text,
-      voice,
-      speed,
-      pitch,
+      input: options.text,
+      voice: options.voice,
+      speed: options.speed,
+      pitch: options.pitch,
       stream: false
     })
   });
