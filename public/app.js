@@ -344,7 +344,12 @@ async function generateSpeech() {
 
     setMessage("语音生成完成，可以试听或下载。", "success");
   } catch (error) {
-    setMessage(error.message || "生成失败，请检查服务端配置。", "error");
+    const detail = error.message || "生成失败，请检查服务端配置。";
+    if (selectedProvider === "huggingface_f5" && /failed to fetch|networkerror|load failed/i.test(detail)) {
+      setMessage("Hugging Face 连接失败。请确认 Space 已重新上传新版 app.py、正在 Running，并且能打开 /api/clone-and-speak 接口。", "error");
+    } else {
+      setMessage(detail, "error");
+    }
   } finally {
     generateButton.disabled = false;
   }
@@ -367,8 +372,10 @@ async function generateHuggingFaceSpeechDirect(text) {
   }
 
   setMessage("正在调用 Hugging Face Space。免费 CPU 可能需要几分钟，请不要关闭页面。", "");
-  const response = await fetch(`${endpoint}/api/clone-and-speak`, {
+  const apiUrl = `${endpoint}/api/clone-and-speak`;
+  const response = await fetch(apiUrl, {
     method: "POST",
+    mode: "cors",
     headers,
     body: form
   });
@@ -377,11 +384,11 @@ async function generateHuggingFaceSpeechDirect(text) {
     const contentType = response.headers.get("content-type") || "";
     if (contentType.includes("application/json")) {
       const data = await response.json().catch(() => ({}));
-      throw new Error(data.error || `Hugging Face 生成失败，状态码 ${response.status}。`);
+      throw new Error(data.error || `Hugging Face 生成失败，状态码 ${response.status}，接口：${apiUrl}`);
     }
 
     const detail = await response.text().catch(() => "");
-    throw new Error(detail || `Hugging Face 生成失败，状态码 ${response.status}。`);
+    throw new Error(detail || `Hugging Face 生成失败，状态码 ${response.status}，接口：${apiUrl}`);
   }
 
   return response.blob();
