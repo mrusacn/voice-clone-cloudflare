@@ -305,6 +305,22 @@ async function generateSpeech() {
   }
 
   try {
+    if (selectedProvider === "huggingface_f5") {
+      const blob = await generateHuggingFaceSpeechDirect(text);
+      setOutputAudio(blob);
+
+      addHistory({
+        id: crypto.randomUUID(),
+        voiceName: voiceName.value.trim() || "我的克隆声音",
+        text,
+        model: provider.options[provider.selectedIndex].textContent,
+        createdAt: new Date().toLocaleString("zh-CN")
+      });
+
+      setMessage("Hugging Face 克隆语音生成完成，可以试听或下载。", "success");
+      return;
+    }
+
     const response = await fetch("/api/clone-and-speak", {
       method: "POST",
       body: form
@@ -332,6 +348,47 @@ async function generateSpeech() {
   } finally {
     generateButton.disabled = false;
   }
+}
+
+async function generateHuggingFaceSpeechDirect(text) {
+  const endpoint = normalizeHuggingFaceEndpoint(hfSpaceUrl.value.trim() || "https://dragonkim-voice-clone-f5-tts.hf.space");
+  const form = new FormData();
+  form.append("sample", selectedSample, selectedSample.name || "sample.wav");
+  form.append("text", text);
+  form.append("ref_text", hfRefText.value.trim());
+  form.append("remove_silence", "false");
+  form.append("speed", "1");
+  form.append("nfe_steps", hfNfeSteps.value.trim() || "8");
+  form.append("max_segment_chars", hfMaxSegmentChars.value.trim() || "80");
+
+  const headers = {};
+  if (hfApiKey.value.trim()) {
+    headers.Authorization = `Bearer ${hfApiKey.value.trim()}`;
+  }
+
+  setMessage("正在调用 Hugging Face Space。免费 CPU 可能需要几分钟，请不要关闭页面。", "");
+  const response = await fetch(`${endpoint}/api/clone-and-speak`, {
+    method: "POST",
+    headers,
+    body: form
+  });
+
+  if (!response.ok) {
+    const contentType = response.headers.get("content-type") || "";
+    if (contentType.includes("application/json")) {
+      const data = await response.json().catch(() => ({}));
+      throw new Error(data.error || `Hugging Face 生成失败，状态码 ${response.status}。`);
+    }
+
+    const detail = await response.text().catch(() => "");
+    throw new Error(detail || `Hugging Face 生成失败，状态码 ${response.status}。`);
+  }
+
+  return response.blob();
+}
+
+function normalizeHuggingFaceEndpoint(value) {
+  return value.replace(/\/+$/, "");
 }
 
 function updateProviderUi() {
