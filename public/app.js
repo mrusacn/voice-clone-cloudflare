@@ -514,6 +514,21 @@ async function startHuggingFaceJob(text) {
   });
 
   if (!response.ok) {
+    if (response.status === 404) {
+      setMessage("Hugging Face 后台任务接口还没部署成功，正在改用旧接口直接生成。关闭页面会中断这次等待。", "");
+      const blob = await generateHuggingFaceSpeechDirectLegacy(text, endpoint, headers, form);
+      setOutputAudio(blob);
+      addHistory({
+        id: crypto.randomUUID(),
+        voiceName: voiceName.value.trim() || "我的克隆声音",
+        text,
+        model: provider.options[provider.selectedIndex].textContent,
+        createdAt: new Date().toLocaleString("zh-CN")
+      });
+      setMessage("Hugging Face 克隆语音生成完成。后台任务接口更新后，关闭页面也能继续生成。", "success");
+      return blob;
+    }
+
     const contentType = response.headers.get("content-type") || "";
     if (contentType.includes("application/json")) {
       const data = await response.json().catch(() => ({}));
@@ -540,6 +555,29 @@ async function startHuggingFaceJob(text) {
   saveActiveHuggingFaceJob(activeJob);
   setMessage(`Hugging Face 后台任务已提交：${job.job_id}。可以关闭页面，稍后回来会继续查询。`, "success");
   return pollHuggingFaceJob(activeJob);
+}
+
+async function generateHuggingFaceSpeechDirectLegacy(text, endpoint, headers, form) {
+  const apiUrl = `${endpoint}/api/clone-and-speak`;
+  const response = await fetch(apiUrl, {
+    method: "POST",
+    mode: "cors",
+    headers,
+    body: form
+  });
+
+  if (!response.ok) {
+    const contentType = response.headers.get("content-type") || "";
+    if (contentType.includes("application/json")) {
+      const data = await response.json().catch(() => ({}));
+      throw new Error(data.error || `Hugging Face 旧接口生成失败，状态码 ${response.status}，接口：${apiUrl}`);
+    }
+
+    const detail = await response.text().catch(() => "");
+    throw new Error(detail || `Hugging Face 旧接口生成失败，状态码 ${response.status}，接口：${apiUrl}`);
+  }
+
+  return response.blob();
 }
 
 async function resumeHuggingFaceJob() {
