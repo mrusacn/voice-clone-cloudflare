@@ -373,6 +373,19 @@ async function generateSpeech() {
     return;
   }
 
+  if (selectedProvider === "huggingface_f5") {
+    const refText = hfRefText.value.trim();
+    if (!refText) {
+      setMessage("Hugging Face 克隆必须填写参考音频原文。请把你录音时说的那句话原样填进去。", "error");
+      return;
+    }
+
+    if (containsHangul(text) && !containsHangul(refText)) {
+      setMessage("你输入的是韩文新文本，参考音频原文也必须是韩文。请先选择 한국어 参考句重新录音，或把韩语录音原文填进去。", "error");
+      return;
+    }
+  }
+
   generateButton.disabled = true;
   setMessage(needsSample(selectedProvider) ? "正在克隆声音并生成语音，这可能需要几十秒。" : "正在调用文本转语音 API。", "");
 
@@ -525,6 +538,10 @@ async function generateHuggingFaceSpeechDirect(text) {
 
 function normalizeHuggingFaceEndpoint(value) {
   return value.replace(/\/+$/, "");
+}
+
+function containsHangul(value) {
+  return /[\uac00-\ud7af\u1100-\u11ff\u3130-\u318f]/.test(value);
 }
 
 function updateProviderUi() {
