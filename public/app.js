@@ -73,8 +73,7 @@ const RECORD_SECONDS = 10;
 const HF_ACTIVE_JOB_KEY = "voiceCloneActiveHuggingFaceJob";
 const recordPrompts = {
   zh: "今天的天气很好，我正在录制一段清晰自然的声音，用来测试语音克隆效果。请保持正常语速，说话不要太快。",
-  en: "Today is a good day. I am recording a clear and natural voice sample to test voice cloning. I will speak calmly and not too fast.",
-  ko: "오늘 날씨가 참 좋습니다. 저는 음성 복제 테스트를 위해 또렷하고 자연스러운 목소리를 녹음하고 있습니다. 너무 빠르지 않게 말하겠습니다."
+  en: "Today is a good day. I am recording a clear and natural voice sample to test voice cloning. I will speak calmly and not too fast."
 };
 
 drawEmptyWaveform();
@@ -382,8 +381,8 @@ async function generateSpeech() {
       return;
     }
 
-    if (containsHangul(text) && !containsHangul(refText)) {
-      setMessage("你输入的是韩文新文本，参考音频原文也必须是韩文。请先选择 한국어 参考句重新录音，或把韩语录音原文填进去。", "error");
+    if (containsHangul(text)) {
+      setMessage("Hugging Face F5-TTS 韩文克隆效果不稳定，录音参考句已不再提供韩文。韩文朗读建议改用 Edge TTS 韩语音色。", "error");
       return;
     }
   }
