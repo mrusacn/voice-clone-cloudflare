@@ -1,4 +1,5 @@
 const sampleInput = document.querySelector("#sampleInput");
+const captureInput = document.querySelector("#captureInput");
 const sampleName = document.querySelector("#sampleName");
 const sampleMeta = document.querySelector("#sampleMeta");
 const sampleBadge = document.querySelector("#sampleBadge");
@@ -12,6 +13,7 @@ const recordTimer = document.querySelector("#recordTimer");
 const startRecordButton = document.querySelector("#startRecordButton");
 const stopRecordButton = document.querySelector("#stopRecordButton");
 const usePromptButton = document.querySelector("#usePromptButton");
+const captureRecordButton = document.querySelector("#captureRecordButton");
 const voiceName = document.querySelector("#voiceName");
 const consent = document.querySelector("#consent");
 const scriptText = document.querySelector("#scriptText");
@@ -86,6 +88,15 @@ sampleInput.addEventListener("change", () => {
   const file = sampleInput.files?.[0];
   if (file) {
     setSample(file);
+  }
+});
+
+captureInput.addEventListener("change", () => {
+  const file = captureInput.files?.[0];
+  if (file) {
+    setSample(file);
+    applyRecordPromptToReference();
+    setMessage("已导入系统录音。可以试听后再生成。", "success");
   }
 });
 
@@ -171,6 +182,7 @@ recordPromptLanguage.addEventListener("change", updateRecordPrompt);
 startRecordButton.addEventListener("click", startRecording);
 stopRecordButton.addEventListener("click", stopRecording);
 usePromptButton.addEventListener("click", applyRecordPromptToReference);
+captureRecordButton.addEventListener("click", () => captureInput.click());
 
 async function setSample(file) {
   selectedSample = file;
@@ -208,7 +220,7 @@ function applyRecordPromptToReference() {
 
 async function startRecording() {
   if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
-    setMessage("当前浏览器不支持直接录音。请使用 Chrome、Edge、Safari，或手动上传音频文件。", "error");
+    setMessage("当前浏览器不支持网页内直接录音。请点“系统录音”，或使用 Chrome / Edge 最新版。", "error");
     return;
   }
 
@@ -220,14 +232,20 @@ async function startRecording() {
         autoGainControl: true
       }
     });
-  } catch {
-    setMessage("无法打开麦克风。请允许浏览器使用麦克风后再试。", "error");
+  } catch (error) {
+    setMessage(microphoneErrorMessage(error), "error");
     return;
   }
 
   recordingChunks = [];
   const mimeType = preferredRecordingMimeType();
-  mediaRecorder = new MediaRecorder(recordingStream, mimeType ? { mimeType } : undefined);
+  try {
+    mediaRecorder = new MediaRecorder(recordingStream, mimeType ? { mimeType } : undefined);
+  } catch (error) {
+    recordingStream?.getTracks().forEach((track) => track.stop());
+    setMessage(`录音初始化失败：${error.message || "浏览器不支持当前录音格式"}。请点“系统录音”备用。`, "error");
+    return;
+  }
   mediaRecorder.addEventListener("dataavailable", (event) => {
     if (event.data?.size) {
       recordingChunks.push(event.data);
@@ -296,6 +314,27 @@ function preferredRecordingMimeType() {
     "audio/mp4"
   ];
   return types.find((type) => MediaRecorder.isTypeSupported(type)) || "";
+}
+
+function microphoneErrorMessage(error) {
+  const name = error?.name || "";
+  if (name === "NotAllowedError" || name === "PermissionDeniedError") {
+    return "浏览器拒绝了麦克风权限。请点地址栏左侧网站设置，把麦克风改为允许，然后刷新页面。";
+  }
+
+  if (name === "NotFoundError" || name === "DevicesNotFoundError") {
+    return "没有找到可用麦克风。请确认 Windows 已识别麦克风，或点“系统录音”备用。";
+  }
+
+  if (name === "NotReadableError" || name === "TrackStartError") {
+    return "麦克风正被其他软件占用。请关闭微信、QQ、会议软件、录音软件后刷新页面再试。";
+  }
+
+  if (name === "SecurityError") {
+    return "当前页面安全策略阻止麦克风。请确认用 https 页面打开，不要用内置浏览器。";
+  }
+
+  return `无法打开麦克风：${error?.message || name || "未知错误"}。可以点“系统录音”备用。`;
 }
 
 async function drawWaveform(file) {
