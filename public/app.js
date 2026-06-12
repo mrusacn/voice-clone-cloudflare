@@ -6,6 +6,12 @@ const sampleAudio = document.querySelector("#sampleAudio");
 const previewButton = document.querySelector("#previewButton");
 const waveform = document.querySelector("#waveform");
 const dropzone = document.querySelector("#dropzone");
+const recordPromptLanguage = document.querySelector("#recordPromptLanguage");
+const recordPromptText = document.querySelector("#recordPromptText");
+const recordTimer = document.querySelector("#recordTimer");
+const startRecordButton = document.querySelector("#startRecordButton");
+const stopRecordButton = document.querySelector("#stopRecordButton");
+const usePromptButton = document.querySelector("#usePromptButton");
 const voiceName = document.querySelector("#voiceName");
 const consent = document.querySelector("#consent");
 const scriptText = document.querySelector("#scriptText");
@@ -56,7 +62,19 @@ let sampleObjectUrl;
 let outputObjectUrl;
 let history = loadHistory();
 let elevenVoicesLoaded = false;
+let mediaRecorder;
+let recordingStream;
+let recordingChunks = [];
+let recordingTimerId;
+let recordingStopTimerId;
+let recordingStartedAt = 0;
 const presetElevenVoiceIds = new Set(Array.from(elevenVoiceId.querySelectorAll("option")).map((option) => option.value));
+const RECORD_SECONDS = 10;
+const recordPrompts = {
+  zh: "今天的天气很好，我正在录制一段清晰自然的声音，用来测试语音克隆效果。请保持正常语速，说话不要太快。",
+  en: "Today is a good day. I am recording a clear and natural voice sample to test voice cloning. I will speak calmly and not too fast.",
+  ko: "오늘 날씨가 참 좋습니다. 저는 음성 복제 테스트를 위해 또렷하고 자연스러운 목소리를 녹음하고 있습니다. 너무 빠르지 않게 말하겠습니다."
+};
 
 drawEmptyWaveform();
 updateCharCount();
@@ -148,6 +166,11 @@ clearHistory.addEventListener("click", () => {
   renderHistory();
 });
 
+recordPromptLanguage.addEventListener("change", updateRecordPrompt);
+startRecordButton.addEventListener("click", startRecording);
+stopRecordButton.addEventListener("click", stopRecording);
+usePromptButton.addEventListener("click", applyRecordPromptToReference);
+
 async function setSample(file) {
   selectedSample = file;
 
@@ -166,6 +189,112 @@ async function setSample(file) {
   } catch {
     drawEmptyWaveform();
   }
+}
+
+function updateRecordPrompt() {
+  recordPromptText.textContent = recordPrompts[recordPromptLanguage.value] || recordPrompts.zh;
+}
+
+function applyRecordPromptToReference() {
+  const prompt = recordPromptText.textContent.trim();
+  hfRefText.value = prompt;
+  if (!scriptText.value.trim() || scriptText.value.includes("欢迎使用声刻 Voice Clone")) {
+    scriptText.value = prompt;
+    updateCharCount();
+  }
+  setMessage("已把录音参考句填入参考音频原文。", "success");
+}
+
+async function startRecording() {
+  if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
+    setMessage("当前浏览器不支持直接录音。请使用 Chrome、Edge、Safari，或手动上传音频文件。", "error");
+    return;
+  }
+
+  try {
+    recordingStream = await navigator.mediaDevices.getUserMedia({
+      audio: {
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true
+      }
+    });
+  } catch {
+    setMessage("无法打开麦克风。请允许浏览器使用麦克风后再试。", "error");
+    return;
+  }
+
+  recordingChunks = [];
+  const mimeType = preferredRecordingMimeType();
+  mediaRecorder = new MediaRecorder(recordingStream, mimeType ? { mimeType } : undefined);
+  mediaRecorder.addEventListener("dataavailable", (event) => {
+    if (event.data?.size) {
+      recordingChunks.push(event.data);
+    }
+  });
+  mediaRecorder.addEventListener("stop", finishRecording);
+
+  mediaRecorder.start();
+  recordingStartedAt = Date.now();
+  startRecordButton.disabled = true;
+  stopRecordButton.disabled = false;
+  sampleBadge.textContent = "录音中";
+  setMessage("正在录音，请按参考句自然朗读。10 秒后会自动停止。", "");
+  updateRecordingTimer();
+  recordingTimerId = setInterval(updateRecordingTimer, 250);
+  recordingStopTimerId = setTimeout(stopRecording, RECORD_SECONDS * 1000);
+}
+
+function stopRecording() {
+  if (recordingStopTimerId) {
+    clearTimeout(recordingStopTimerId);
+    recordingStopTimerId = undefined;
+  }
+
+  if (mediaRecorder && mediaRecorder.state !== "inactive") {
+    mediaRecorder.stop();
+  }
+}
+
+async function finishRecording() {
+  if (recordingTimerId) {
+    clearInterval(recordingTimerId);
+    recordingTimerId = undefined;
+  }
+
+  recordingStream?.getTracks().forEach((track) => track.stop());
+  recordingStream = undefined;
+  startRecordButton.disabled = false;
+  stopRecordButton.disabled = true;
+  recordTimer.textContent = "00:10";
+
+  const type = mediaRecorder?.mimeType || "audio/webm";
+  const blob = new Blob(recordingChunks, { type });
+  if (!blob.size) {
+    setMessage("录音没有保存成功，请重新录制。", "error");
+    return;
+  }
+
+  const extension = type.includes("mp4") ? "m4a" : "webm";
+  const file = new File([blob], `voice-sample-${Date.now()}.${extension}`, { type });
+  await setSample(file);
+  applyRecordPromptToReference();
+  setMessage("录音完成，已作为参考音频。可以试听后再生成。", "success");
+}
+
+function updateRecordingTimer() {
+  const elapsed = Math.floor((Date.now() - recordingStartedAt) / 1000);
+  const remaining = Math.max(0, RECORD_SECONDS - elapsed);
+  recordTimer.textContent = `00:${String(remaining).padStart(2, "0")}`;
+}
+
+function preferredRecordingMimeType() {
+  const types = [
+    "audio/webm;codecs=opus",
+    "audio/webm",
+    "audio/mp4"
+  ];
+  return types.find((type) => MediaRecorder.isTypeSupported(type)) || "";
 }
 
 async function drawWaveform(file) {

@@ -31,7 +31,7 @@
           <div class="panel-head">
             <div>
               <p class="step">1. 克隆声音</p>
-              <h1>上传 3 到 10 秒清晰人声音频</h1>
+              <h1>上传或录制 8 到 12 秒清晰人声音频</h1>
             </div>
             <span class="mini-badge" id="sampleBadge">未上传</span>
           </div>
@@ -44,6 +44,39 @@
             <strong id="sampleName">选择或拖入音频文件</strong>
             <span id="sampleMeta">支持 wav、mp3、m4a、webm，建议安静环境录制。</span>
           </label>
+
+          <div class="record-card">
+            <div class="record-head">
+              <div>
+                <strong>直接录制参考声音</strong>
+                <span>建议录 10 秒，安静环境，正常语速。</span>
+              </div>
+              <span class="record-timer" id="recordTimer">00:10</span>
+            </div>
+            <label class="field">
+              <span>录音语言 / 参考句</span>
+              <select id="recordPromptLanguage">
+                <option value="zh">中文普通话</option>
+                <option value="en">English</option>
+                <option value="ko">한국어</option>
+              </select>
+            </label>
+            <p class="record-prompt" id="recordPromptText">今天的天气很好，我正在录制一段清晰自然的声音，用来测试语音克隆效果。请保持正常语速，说话不要太快。</p>
+            <div class="record-actions">
+              <button class="ghost-button" id="startRecordButton" type="button">
+                <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="6"/></svg>
+                开始录音
+              </button>
+              <button class="ghost-button danger" id="stopRecordButton" type="button" disabled>
+                <svg viewBox="0 0 24 24"><rect x="8" y="8" width="8" height="8"/></svg>
+                停止
+              </button>
+              <button class="ghost-button" id="usePromptButton" type="button">
+                <svg viewBox="0 0 24 24"><path d="M9 12l2 2 4-4"/><path d="M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z"/></svg>
+                填入参考原文
+              </button>
+            </div>
+          </div>
 
           <div class="wave-card">
             <button class="icon-button" id="previewButton" type="button" aria-label="播放样本音频">
@@ -478,6 +511,6 @@
       </section>
     </main>
 
-    <script src="/app.js?v=hf-direct-20260610-2" type="module"></script>
+    <script src="/app.js?v=recording-20260612-1" type="module"></script>
   </body>
 </html>

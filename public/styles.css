@@ -240,6 +240,71 @@ h2 {
   font-size: 14px;
 }
 
+.record-card {
+  display: grid;
+  gap: 12px;
+  margin-top: 14px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfcfc;
+}
+
+.record-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.record-head strong {
+  display: block;
+  margin-bottom: 4px;
+}
+
+.record-head span,
+.record-prompt {
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.record-timer {
+  flex: 0 0 auto;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: #fff4f2;
+  color: var(--coral-dark);
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.record-prompt {
+  margin: 0;
+  padding: 12px;
+  border: 1px solid #d8e5e6;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.record-actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.ghost-button.danger {
+  color: #b42318;
+  border-color: #ffd0c9;
+  background: #fff6f4;
+}
+
+.ghost-button:disabled {
+  color: #9aa7ad;
+  background: #f4f7f7;
+  cursor: not-allowed;
+}
+
 .wave-card {
   display: grid;
   grid-template-columns: 44px 1fr;
@@ -641,7 +706,8 @@ tr:last-child td {
   }
 
   .history-actions,
-  .player-wrap {
+  .player-wrap,
+  .record-actions {
     display: grid;
     grid-template-columns: 1fr;
     width: 100%;
