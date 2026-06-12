@@ -10,6 +10,7 @@
 - 勾选授权声明后才允许生成
 - Cloudflare Pages Function 代理第三方语音 API，避免把固定密钥写进前端代码
 - 支持 Edge TTS 免费音色、Hugging Face F5-TTS 克隆、ElevenLabs 免费普通 TTS、ElevenLabs 声音克隆、Microsoft Azure Speech、Google Cloud Text-to-Speech、自定义兼容 API
+- Hugging Face F5-TTS 支持后台生成任务，提交成功后关闭网页也可以稍后回来继续查询结果
 - 默认生成后删除临时克隆声音，降低隐私风险
 - 本地浏览器保存最近生成记录
 

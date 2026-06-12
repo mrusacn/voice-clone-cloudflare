@@ -70,6 +70,7 @@ let recordingStopTimerId;
 let recordingStartedAt = 0;
 const presetElevenVoiceIds = new Set(Array.from(elevenVoiceId.querySelectorAll("option")).map((option) => option.value));
 const RECORD_SECONDS = 10;
+const HF_ACTIVE_JOB_KEY = "voiceCloneActiveHuggingFaceJob";
 const recordPrompts = {
   zh: "今天的天气很好，我正在录制一段清晰自然的声音，用来测试语音克隆效果。请保持正常语速，说话不要太快。",
   en: "Today is a good day. I am recording a clear and natural voice sample to test voice cloning. I will speak calmly and not too fast.",
@@ -80,6 +81,7 @@ drawEmptyWaveform();
 updateCharCount();
 renderHistory();
 updateProviderUi();
+resumeHuggingFaceJob();
 
 sampleInput.addEventListener("change", () => {
   const file = sampleInput.files?.[0];
@@ -448,18 +450,7 @@ async function generateSpeech() {
 
   try {
     if (selectedProvider === "huggingface_f5") {
-      const blob = await generateHuggingFaceSpeechDirect(text);
-      setOutputAudio(blob);
-
-      addHistory({
-        id: crypto.randomUUID(),
-        voiceName: voiceName.value.trim() || "我的克隆声音",
-        text,
-        model: provider.options[provider.selectedIndex].textContent,
-        createdAt: new Date().toLocaleString("zh-CN")
-      });
-
-      setMessage("Hugging Face 克隆语音生成完成，可以试听或下载。", "success");
+      await startHuggingFaceJob(text);
       return;
     }
 
@@ -497,7 +488,7 @@ async function generateSpeech() {
   }
 }
 
-async function generateHuggingFaceSpeechDirect(text) {
+async function startHuggingFaceJob(text) {
   const endpoint = normalizeHuggingFaceEndpoint(hfSpaceUrl.value.trim() || "https://dragonkim-voice-clone-f5-tts.hf.space");
   const form = new FormData();
   form.append("sample", selectedSample, selectedSample.name || "sample.wav");
@@ -513,8 +504,8 @@ async function generateHuggingFaceSpeechDirect(text) {
     headers.Authorization = `Bearer ${hfApiKey.value.trim()}`;
   }
 
-  setMessage("正在调用 Hugging Face Space。免费 CPU 可能需要几分钟，请不要关闭页面。", "");
-  const apiUrl = `${endpoint}/api/clone-and-speak`;
+  setMessage("正在提交 Hugging Face 后台任务。提交成功后关闭页面也会继续生成。", "");
+  const apiUrl = `${endpoint}/api/jobs`;
   const response = await fetch(apiUrl, {
     method: "POST",
     mode: "cors",
@@ -526,14 +517,111 @@ async function generateHuggingFaceSpeechDirect(text) {
     const contentType = response.headers.get("content-type") || "";
     if (contentType.includes("application/json")) {
       const data = await response.json().catch(() => ({}));
-      throw new Error(data.error || `Hugging Face 生成失败，状态码 ${response.status}，接口：${apiUrl}`);
+      throw new Error(data.error || `Hugging Face 任务提交失败，状态码 ${response.status}，接口：${apiUrl}`);
     }
 
     const detail = await response.text().catch(() => "");
-    throw new Error(detail || `Hugging Face 生成失败，状态码 ${response.status}，接口：${apiUrl}`);
+    throw new Error(detail || `Hugging Face 任务提交失败，状态码 ${response.status}，接口：${apiUrl}`);
   }
 
-  return response.blob();
+  const job = await response.json();
+  if (!job.job_id) {
+    throw new Error("Hugging Face 没有返回任务号。");
+  }
+
+  const activeJob = {
+    endpoint,
+    jobId: job.job_id,
+    text,
+    voiceName: voiceName.value.trim() || "我的克隆声音",
+    model: provider.options[provider.selectedIndex].textContent,
+    createdAt: new Date().toLocaleString("zh-CN")
+  };
+  saveActiveHuggingFaceJob(activeJob);
+  setMessage(`Hugging Face 后台任务已提交：${job.job_id}。可以关闭页面，稍后回来会继续查询。`, "success");
+  return pollHuggingFaceJob(activeJob);
+}
+
+async function resumeHuggingFaceJob() {
+  const activeJob = loadActiveHuggingFaceJob();
+  if (!activeJob?.jobId || !activeJob?.endpoint) {
+    return;
+  }
+
+  setMessage(`检测到未完成的 Hugging Face 任务：${activeJob.jobId}，正在继续查询。`, "");
+  try {
+    await pollHuggingFaceJob(activeJob);
+  } catch (error) {
+    setMessage(error.message || "继续查询 Hugging Face 任务失败。", "error");
+  }
+}
+
+async function pollHuggingFaceJob(activeJob) {
+  generateButton.disabled = true;
+
+  try {
+    for (;;) {
+      const statusUrl = `${activeJob.endpoint}/api/jobs/${encodeURIComponent(activeJob.jobId)}`;
+      const response = await fetch(statusUrl, { mode: "cors" });
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.error || `查询 Hugging Face 任务失败，状态码 ${response.status}。`);
+      }
+
+      const job = await response.json();
+
+      if (job.status === "completed") {
+        const audioUrl = job.audio_url?.startsWith("http")
+          ? job.audio_url
+          : `${activeJob.endpoint}${job.audio_url}`;
+        const audioResponse = await fetch(audioUrl, { mode: "cors" });
+
+        if (!audioResponse.ok) {
+          throw new Error(`下载 Hugging Face 生成音频失败，状态码 ${audioResponse.status}。`);
+        }
+
+        const blob = await audioResponse.blob();
+        setOutputAudio(blob);
+        addHistory({
+          id: crypto.randomUUID(),
+          voiceName: activeJob.voiceName,
+          text: activeJob.text,
+          model: activeJob.model,
+          createdAt: new Date().toLocaleString("zh-CN")
+        });
+        clearActiveHuggingFaceJob();
+        setMessage("Hugging Face 后台语音生成完成，可以试听或下载。", "success");
+        return blob;
+      }
+
+      if (job.status === "failed") {
+        clearActiveHuggingFaceJob();
+        throw new Error(job.message || "Hugging Face 后台任务生成失败。");
+      }
+
+      setMessage(`Hugging Face 正在后台生成：${job.status || "running"}。${job.message || ""} 可以关闭页面稍后回来。`, "");
+      await wait(5000);
+    }
+  } finally {
+    generateButton.disabled = false;
+  }
+}
+
+function saveActiveHuggingFaceJob(job) {
+  localStorage.setItem(HF_ACTIVE_JOB_KEY, JSON.stringify(job));
+}
+
+function loadActiveHuggingFaceJob() {
+  try {
+    return JSON.parse(localStorage.getItem(HF_ACTIVE_JOB_KEY) || "null");
+  } catch {
+    return null;
+  }
+}
+
+function clearActiveHuggingFaceJob() {
+  localStorage.removeItem(HF_ACTIVE_JOB_KEY);
 }
 
 function normalizeHuggingFaceEndpoint(value) {
